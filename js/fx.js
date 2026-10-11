@@ -272,5 +272,84 @@
     return lenis;
   }
 
-  window.FX = { intro, wearHTML, dialHTML, spinDial, initCursor, initSpotlight, initSmoothScroll, rng };
+  /* ---------- Flickering bulb ---------- */
+
+  /*
+   * The bulb's brightness is one number, --bulb (0..1), set on <html> so the
+   * bulb, its glow and the room's ambient light all dim together. Patterns
+   * are lists of [brightness, hold ms]. Flicker is deliberately irregular:
+   * a fixed-interval blink reads as a UI animation, a random one as a bulb.
+   */
+  const BULB = {
+    on: [[0.18, 60], [0, 110], [0.75, 50], [0.08, 160], [0.5, 45], [0, 70], [0.9, 40], [0.4, 60], [1, 0]],
+    patterns: [
+      { w: 5, seq: [[0.35, 45], [1, 70], [0.55, 40], [1, 0]] },                       // quick double dip
+      { w: 3, seq: [[0.7, 30], [0.45, 30], [0.8, 30], [0.4, 30], [0.85, 40], [1, 0]] }, // buzzing
+      { w: 2, seq: [[0.6, 500], [0.35, 60], [0.65, 120], [1, 0]] },                    // brown-out
+      { w: 1, seq: [[0, 90], [1, 40], [0, 70], [0.6, 50], [1, 0]] },                   // nearly dies
+    ],
+    gap: [2600, 8000],   // ms between flicker bursts
+  };
+
+  function initBulb() {
+    const el = document.getElementById("bulb");
+    if (!el) return { start() {} };
+    const root = document.documentElement;
+    const swing = el.querySelector(".bulb__swing");
+    const set = (v) => root.style.setProperty("--bulb", v.toFixed(3));
+    let busy = false;
+
+    const play = (seq) =>
+      new Promise((done) => {
+        busy = true;
+        let i = 0;
+        const next = () => {
+          if (i >= seq.length) {
+            busy = false;
+            return done();
+          }
+          const [v, hold] = seq[i++];
+          set(v);
+          setTimeout(next, hold);
+        };
+        next();
+      });
+
+    const pick = () => {
+      const total = BULB.patterns.reduce((a, p) => a + p.w, 0);
+      let r = Math.random() * total;
+      return BULB.patterns.find((p) => (r -= p.w) < 0).seq;
+    };
+
+    async function idle() {
+      const [lo, hi] = BULB.gap;
+      setTimeout(async () => {
+        if (!document.hidden && !busy) await play(pick());
+        idle();
+      }, lo + Math.random() * (hi - lo));
+    }
+
+    // Brushing past the bulb sets it swinging, and the loose connection flickers.
+    el.querySelector(".bulb__glass").addEventListener("pointerenter", () => {
+      if (reduceMotion) return;
+      swing.animate(
+        [
+          { transform: "rotate(0deg)" }, { transform: "rotate(9deg)" }, { transform: "rotate(-6deg)" },
+          { transform: "rotate(3.5deg)" }, { transform: "rotate(-1.5deg)" }, { transform: "rotate(0deg)" },
+        ],
+        { duration: 2200, easing: "ease-out" }
+      );
+      if (!busy) play(BULB.patterns[0].seq);
+    });
+
+    return {
+      async start() {
+        if (reduceMotion) return set(1);
+        await play(BULB.on);
+        idle();
+      },
+    };
+  }
+
+  window.FX = { initBulb, intro, wearHTML, dialHTML, spinDial, initCursor, initSpotlight, initSmoothScroll, rng };
 })();

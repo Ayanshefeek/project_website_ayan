@@ -45,6 +45,24 @@
   </div>
   <div class="grain" aria-hidden="true"></div>
 
+  <!-- The room's light: a bare bulb hanging in the top corner (driven by initBulb in fx.js). -->
+  <div class="bulb-room" aria-hidden="true">
+  <div class="bulb" id="bulb">
+    <div class="bulb__swing">
+      <i class="bulb__cord"></i>
+      <i class="bulb__cap"></i>
+      <div class="bulb__glass">
+        <svg class="bulb__filament" viewBox="0 0 40 48">
+          <path class="bulb__wire" d="M15 2 L15 22 M25 2 L25 22"/>
+          <path class="bulb__coil" d="M15 22 l2 -4 l2 4 l2 -4 l2 4 l2 -4 l0 4"/>
+          <path class="bulb__coil bulb__coil--hot" d="M15 22 l2 -4 l2 4 l2 -4 l2 4 l2 -4 l0 4"/>
+        </svg>
+      </div>
+      <i class="bulb__cone"></i>
+    </div>
+  </div>
+  </div>
+
   <nav class="nav" id="nav">
     <a class="nav__brand" href="#top" aria-label="Back to top">
       <span class="nav__mono">AS</span>

@@ -37,7 +37,7 @@ site reverses it, so the new project automatically shows up in the first locker.
 | `js/projects.js` | Project data, the only file to edit when adding a project |
 | `js/art.js` | Hand-drawn style SVG poster for each project |
 | `js/door.js` | Door spring physics + synthesized sounds |
-| `js/fx.js` | Intro, locker wear, combination dial, custom cursor, spotlight, smooth scroll |
+| `js/fx.js` | Intro, flickering bulb, locker wear, combination dial, custom cursor, spotlight, smooth scroll |
 | `js/vendor/lenis.min.js` | Smooth-scroll library (MIT, see `LENIS-LICENSE`) |
 | `js/main.js` | Renders lockers + index, scroll-driven hallway, shuffle, door dragging, open/close morph, browsing, filters, deep links |
 
@@ -45,6 +45,9 @@ site reverses it, so the new project automatically shows up in the first locker.
 
 - **Intro**: a short curtain holds the page until the web fonts are ready (no text jumping), then the
   room's lamp flickers on and the hero rises in.
+- **The room's bulb**: a bare bulb hangs in the top corner. It stutters on as the page opens, then
+  flickers at random (quick dips, buzzing, the odd brown-out). The whole room's light dims with it,
+  and brushing past it with the cursor sets it swinging.
 - **Walk the hallway** (desktop): scrolling moves you along a wall of lockers set in 3D, with
   ceiling tubes that flicker on, a glossy floor reflection, a soft spotlight that follows your mouse,
   and a progress line. Phones get a tidy grid instead.

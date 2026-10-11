@@ -949,7 +949,9 @@
   FX.initCursor();
   FX.initSpotlight($("#hall-stage"));
   // Fonts can change locker widths, so measure the track again once they're in.
+  const bulb = FX.initBulb();
   FX.intro().then(() => {
+    bulb.start(); // the room's light stutters on once the curtain is gone
     window.dispatchEvent(new Event("resize"));
     openFromHash();
   });
