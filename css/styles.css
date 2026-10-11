@@ -157,10 +157,15 @@ kbd {
 }
 .hero__cue:hover { color: var(--ink); }
 @keyframes rise { from { opacity: 0; transform: translateY(18px); } }
+/* Behind the intro curtain the hero waits; its rise plays when the curtain lifts. */
+.is-intro .hero > *, .is-intro .hero__title { animation: none; opacity: 0; }
 @keyframes cue { 0% { transform: translateX(-100%); } 60%, 100% { transform: translateX(100%); } }
 
 /* ---------- 4. Locker bank ---------- */
-.hallway { padding: 40px var(--gutter) 30px; scroll-margin-top: 40px; }
+.hallway { position: relative; scroll-margin-top: 40px; }
+.hallway__stage { position: relative; padding: 40px var(--gutter) 30px; }
+.wall { position: relative; }
+.ceiling, .hallway__floor, .only-track { display: none; }
 .bank {
   position: relative; max-width: 1120px; margin: 0 auto; padding: 14px 14px 0;
   border-radius: 6px 6px 0 0;
@@ -282,10 +287,32 @@ kbd {
 }
 .locker:hover .sheen { opacity: 1; }
 
-.hallway__hint {
-  margin: 56px auto 0; text-align: center; font: 500 11px var(--mono); letter-spacing: .14em;
-  text-transform: uppercase; color: var(--muted);
+/* Bar under the lockers: hint, walk progress, shuffle. */
+.hallway__bar {
+  max-width: 1120px; margin: 56px auto 0;
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 18px 28px;
 }
+.hallway__hint { margin: 0; font: 500 11px var(--mono); letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
+.hallway__progress { display: none; }
+
+.shuffle {
+  display: inline-flex; align-items: center; gap: 10px; height: 42px; padding: 0 18px 0 12px; border-radius: 40px;
+  cursor: pointer; background: rgba(255,255,255,.04); border: 1px solid var(--line); color: var(--ink);
+  font: 500 13px var(--sans); overflow: hidden;
+  transition: border-color .3s, background .3s, box-shadow .4s;
+}
+.shuffle:hover { border-color: color-mix(in srgb, var(--gold) 50%, transparent); background: rgba(217,185,119,.06); }
+.shuffle__die { width: 20px; height: 20px; flex: none; fill: none; stroke: var(--gold); stroke-width: 1.4; transition: transform .6s var(--ease-out); }
+.shuffle__die circle { fill: var(--gold); stroke: none; }
+.shuffle:hover .shuffle__die { transform: rotate(90deg); }
+.shuffle.is-spinning .shuffle__die { animation: roll-die .5s linear infinite; }
+.shuffle.is-landed { border-color: var(--gold); box-shadow: 0 0 0 4px rgba(217,185,119,.12), 0 10px 30px rgba(217,185,119,.15); }
+.shuffle.is-landed .shuffle__die { animation: none; transform: rotate(0); }
+.shuffle__text { display: inline-block; min-width: 13.5em; text-align: left; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.shuffle__text.roll { animation: roll .12s ease-out; }
+.shuffle.is-landed .shuffle__text { color: var(--gold); }
+@keyframes roll-die { to { transform: rotate(360deg); } }
+@keyframes roll { from { transform: translateY(-60%); opacity: .2; } }
 
 /* ---------- 5. Project index + filters ---------- */
 .index { max-width: 1120px; margin: 0 auto; padding: 90px var(--gutter) 40px; scroll-margin-top: 40px; }
@@ -537,6 +564,7 @@ kbd {
   touch-action: none; user-select: none; -webkit-user-select: none;
 }
 .cabinet.is-grabbing, .cabinet.is-grabbing .cabinet__door { cursor: grabbing; }
+.cabinet.is-grabbing, .cabinet.is-grabbing * { user-select: none; -webkit-user-select: none; }
 .door__face { position: absolute; inset: 0; backface-visibility: hidden; border-radius: 6px; }
 .door__face::after { /* faces darken as they turn away from the light */
   content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
@@ -669,4 +697,200 @@ kbd {
   html { scroll-behavior: auto; }
   *, *::before, *::after { animation: none !important; transition-duration: .01ms !important; transition-delay: 0s !important; }
   .slot { opacity: 1; transform: none; }
+}
+
+
+/* =====================================================================
+   9. Polish layer: intro, track hallway, lights, reflection, spotlight,
+      wear, combination dial, custom cursor, smooth scroll.
+   ===================================================================== */
+
+/* ---------- Intro curtain ---------- */
+.is-intro body { overflow: hidden; }
+.intro {
+  position: fixed; inset: 0; z-index: 400; display: grid; place-items: center; background: #0b0b0c;
+  transition: opacity .8s ease .2s, visibility 0s 1s;
+}
+.intro.is-done { opacity: 0; visibility: hidden; }
+.intro__mark { display: grid; justify-items: center; gap: 18px; transition: transform .9s var(--ease-out), opacity .5s ease; }
+.intro.is-done .intro__mark { transform: translateY(-10px); opacity: 0; }
+.intro__mono {
+  display: grid; place-items: center; width: 46px; height: 46px; border-radius: 50%;
+  border: 1px solid rgba(217,185,119,.55); color: var(--gold); font: 400 19px/1 Georgia, serif;
+  animation: breathe 1.8s ease-in-out infinite;
+}
+.intro__bar { position: relative; width: 140px; height: 1px; background: var(--line); overflow: hidden; }
+.intro__bar::after {
+  content: ""; position: absolute; inset: 0; background: var(--gold); transform-origin: left;
+  transform: scaleX(0); animation: load 1.8s cubic-bezier(.3, .6, .2, 1) forwards;
+}
+.intro.is-done .intro__bar::after { animation: none; transform: scaleX(1); transition: transform .3s ease; }
+.intro__caption { font: 500 10px var(--mono); letter-spacing: .24em; text-transform: uppercase; color: var(--faint); }
+@keyframes load { to { transform: scaleX(.86); } }
+@keyframes breathe { 50% { box-shadow: 0 0 24px rgba(217,185,119,.25); } }
+/* The room's lamp stutters on as the curtain lifts. */
+.is-ready .ambient__lamp { animation: lamp-on 1.3s steps(1) both; }
+@keyframes lamp-on { 0% { opacity: 0; } 12% { opacity: .7; } 20% { opacity: .1; } 34% { opacity: 1; } 42% { opacity: .35; } 52%, 100% { opacity: 1; } }
+
+/* ---------- Scroll-driven hallway (wide screens) ---------- */
+.is-track .hallway__stage {
+  position: sticky; top: 0; height: 100vh; overflow: hidden; padding: 0;
+  perspective: 1500px; perspective-origin: 50% 42%;
+}
+.is-track .hallway__stage::after { /* vignette: the ends of the corridor fall into shadow */
+  content: ""; position: absolute; inset: 0; pointer-events: none; z-index: 3;
+  background:
+    linear-gradient(90deg, rgba(15,15,17,.85), transparent 14%, transparent 80%, rgba(15,15,17,.95)),
+    linear-gradient(180deg, rgba(15,15,17,.7), transparent 18%, transparent 82%, rgba(15,15,17,.8));
+}
+.is-track .wall {
+  position: absolute; left: 9vw; top: 50%; width: max-content;
+  transform-origin: 0 50%; transform-style: preserve-3d;
+  /* translate happens along the (rotated) wall, so lockers recede and approach */
+  transform: translateY(-47%) rotateY(14deg) translateX(var(--x, 0px));
+  will-change: transform;
+}
+.is-track .bank { max-width: none; margin: 0; }
+.is-track .bank__row { display: flex; gap: 10px; }
+.is-track .slot { width: clamp(220px, 33vh, 340px); flex: none; }
+/* The glossy floor mirrors the bank (Chromium/Safari; others just get the gloss). */
+.is-track .bank { -webkit-box-reflect: below 30px linear-gradient(transparent 58%, rgba(255,255,255,.2)); }
+.is-track .hallway__floor {
+  display: block; position: absolute; left: 0; right: 0; bottom: 0; height: 30%; pointer-events: none;
+  background:
+    radial-gradient(ellipse 60% 70% at 45% 0%, rgba(255,240,215,.06), transparent 70%),
+    linear-gradient(180deg, rgba(255,255,255,.025), rgba(0,0,0,.35));
+  border-top: 1px solid rgba(255,255,255,.05);
+}
+.is-track .only-track { display: inline; }
+.is-track .hallway__bar {
+  position: absolute; left: var(--gutter); right: var(--gutter); bottom: 26px; z-index: 4; max-width: none; margin: 0;
+}
+.is-track .hallway__progress {
+  display: block; position: relative; flex: 1; max-width: 320px; height: 1px; background: var(--line);
+}
+.hallway__progress i {
+  position: absolute; inset: 0; background: var(--gold); transform-origin: left; transform: scaleX(var(--prog, 0));
+}
+
+/* Ceiling tubes above the wall, each throwing a cone of light on the lockers. */
+.is-track .ceiling {
+  display: flex; justify-content: space-around; position: relative; z-index: 2; height: 10px; margin: 0 0 70px;
+}
+.ceiling i {
+  position: relative; width: 120px; height: 6px; border-radius: 4px;
+  background: #3a3c40; box-shadow: none; transition: background .2s;
+}
+.ceiling i::after { /* light cone */
+  content: ""; position: absolute; left: 50%; top: 6px; width: 340px; height: 560px; transform: translateX(-50%);
+  background: radial-gradient(ellipse 50% 100% at 50% 0%, rgba(255,240,210,.13), transparent 70%);
+  pointer-events: none; opacity: 0; mix-blend-mode: screen;
+}
+.lights-on .ceiling i { animation: tube-on 1.4s steps(1) both; background: #fff6e4; box-shadow: 0 0 18px 4px rgba(255,240,210,.45); }
+.lights-on .ceiling i::after { animation: cone-on 1.4s steps(1) both; opacity: 1; }
+.lights-on .ceiling i:nth-child(2), .lights-on .ceiling i:nth-child(2)::after { animation-delay: .25s; }
+.lights-on .ceiling i:nth-child(3), .lights-on .ceiling i:nth-child(3)::after { animation-delay: .5s; }
+.lights-on .ceiling i:nth-child(4), .lights-on .ceiling i:nth-child(4)::after { animation-delay: .7s; }
+.lights-on .ceiling i:nth-child(5), .lights-on .ceiling i:nth-child(5)::after { animation-delay: .85s; }
+@keyframes tube-on { 0% { background: #3a3c40; box-shadow: none; } 15% { background: #fff6e4; box-shadow: 0 0 18px 4px rgba(255,240,210,.45); } 25% { background: #3a3c40; box-shadow: none; } 40%, 100% { background: #fff6e4; box-shadow: 0 0 18px 4px rgba(255,240,210,.45); } }
+@keyframes cone-on { 0% { opacity: 0; } 15% { opacity: 1; } 25% { opacity: 0; } 40%, 100% { opacity: 1; } }
+
+/* Soft light that follows the pointer across the hallway (fx.js sets --lx/--ly/--lon). */
+.hallway__spot {
+  position: absolute; inset: 0; pointer-events: none; z-index: 2; opacity: var(--lon, 0);
+  background: radial-gradient(520px circle at var(--lx, 50%) var(--ly, 40%), rgba(255,236,205,.2), transparent 62%);
+  mix-blend-mode: overlay;
+}
+
+/* ---------- Locker wear ---------- */
+.wear { position: absolute; inset: 0; pointer-events: none; }
+.wear::after { /* grime gathers near the floor */
+  content: ""; position: absolute; inset: 0;
+  background: linear-gradient(0deg, rgba(20,16,10,.22), transparent 24%), radial-gradient(ellipse at 10% 55%, rgba(0,0,0,.08), transparent 30%);
+}
+.wear__marks { position: absolute; inset: 0; width: 100%; height: 100%; }
+.dent {
+  position: absolute; aspect-ratio: 1.6; border-radius: 50%;
+  background:
+    radial-gradient(ellipse at 38% 32%, rgba(255,255,255,.06), transparent 45%),
+    radial-gradient(ellipse at 62% 70%, rgba(0,0,0,.16), transparent 58%);
+  filter: blur(1.5px);
+}
+.old-sticker {
+  position: absolute; width: 13%; aspect-ratio: 1; transform: rotate(var(--rot));
+  opacity: .5; filter: saturate(.4) sepia(.3) contrast(.9);
+}
+.old-sticker svg { display: block; width: 100%; height: 100%; }
+.old-sticker::after { /* a lifted corner */
+  content: ""; position: absolute; right: 2%; bottom: 2%; width: 26%; height: 26%;
+  background: linear-gradient(135deg, transparent 50%, #e8e2d2 50%); border-radius: 0 0 40% 0;
+  box-shadow: -1px -1px 2px rgba(0,0,0,.3);
+}
+
+/* ---------- Combination dial ---------- */
+.dial {
+  position: absolute; left: 21%; top: 46%; width: 15%; aspect-ratio: 1; border-radius: 50%;
+  box-shadow: 0 3px 7px rgba(0,0,0,.55), 0 0 0 1px rgba(0,0,0,.4);
+}
+.dial__face {
+  display: block; width: 100%; height: 100%;
+  /* hallway doors: the dial turns as the door swings ajar (--glow from the door spring) */
+  transform: rotate(calc(var(--glow, 0) * -80deg));
+}
+.dial__rim { fill: #2d3035; stroke: #9aa0a7; stroke-width: 2; }
+.dial__plate { fill: #17191c; }
+.dial__ticks line { stroke: #d9d5cc; }
+.dial__nums text { fill: #d9d5cc; font: 600 10px var(--mono); }
+.dial__knob { fill: #4a4f56; stroke: #9aa0a7; stroke-width: 1.5; }
+.dial__mark {
+  position: absolute; left: 50%; top: -9%; transform: translateX(-50%);
+  border: 4px solid transparent; border-top: 6px solid var(--accent); border-bottom: 0;
+}
+
+/* ---------- Custom cursor ---------- */
+.has-cursor, .has-cursor * { cursor: none !important; }
+.cursor { position: fixed; left: 0; top: 0; z-index: 300; pointer-events: none; transition: opacity .3s; }
+.cursor.is-hidden { opacity: 0; }
+.cursor__ring { position: fixed; left: 0; top: 0; width: 0; height: 0; }
+.cursor__ring::before {
+  content: ""; position: absolute; left: 0; top: 0; width: 30px; height: 30px; border-radius: 50%;
+  transform: translate(-50%, -50%); border: 1px solid rgba(217,185,119,.6);
+  transition: width .45s var(--ease-out), height .45s var(--ease-out), background .3s, border-color .3s;
+}
+.cursor__dot {
+  position: fixed; left: 0; top: 0; width: 5px; height: 5px; margin: -2.5px 0 0 -2.5px; border-radius: 50%;
+  background: var(--gold); transition: opacity .2s, scale .3s;
+}
+.cursor__label, .cursor__hand {
+  position: absolute; left: 0; top: 0; transform: translate(-50%, -50%) scale(.6); opacity: 0;
+  transition: opacity .25s, transform .4s var(--ease-out);
+}
+.cursor__label { font: 600 9px var(--mono); letter-spacing: .22em; text-transform: uppercase; color: var(--gold); padding-left: .22em; }
+.cursor__hand { width: 22px; height: 22px; fill: none; stroke: var(--gold); stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+.cursor[data-state="link"] .cursor__ring::before { width: 46px; height: 46px; background: rgba(217,185,119,.07); }
+.cursor[data-state="open"] .cursor__ring::before { width: 74px; height: 74px; background: rgba(12,12,14,.45); border-color: var(--gold); }
+.cursor[data-state="open"] .cursor__label { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+.cursor[data-state="open"] .cursor__dot,
+.cursor[data-state="grab"] .cursor__dot,
+.cursor[data-state="grabbing"] .cursor__dot { opacity: 0; }
+.cursor[data-state="grab"] .cursor__ring::before { width: 58px; height: 58px; background: rgba(12,12,14,.4); border-color: var(--gold); }
+.cursor[data-state="grab"] .cursor__hand { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+.cursor[data-state="grabbing"] .cursor__ring::before { width: 44px; height: 44px; background: rgba(217,185,119,.22); border-color: var(--gold); }
+.cursor[data-state="grabbing"] .cursor__hand { opacity: 1; transform: translate(-50%, -50%) scale(.82); }
+
+/* ---------- Lenis (smooth scroll) ---------- */
+html.lenis, html.lenis body { height: auto; }
+.lenis.lenis-smooth { scroll-behavior: auto !important; }
+.lenis.lenis-smooth [data-lenis-prevent] { overscroll-behavior: contain; }
+.lenis.lenis-stopped { overflow: hidden; }
+
+@media (max-width: 760px) {
+  .hallway__bar { justify-content: center; text-align: center; }
+  .shuffle__text { min-width: 0; max-width: 62vw; overflow: hidden; text-overflow: ellipsis; }
+  .dial__nums { display: none; }
+  .bank .dial { top: 56%; left: 22%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .intro { display: none; }
+  .is-intro .hero > *, .is-intro .hero__title { opacity: 1; }
 }

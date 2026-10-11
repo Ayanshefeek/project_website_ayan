@@ -37,7 +37,25 @@ site reverses it, so the new project automatically shows up in the first locker.
 | `js/projects.js` | Project data, the only file to edit when adding a project |
 | `js/art.js` | Hand-drawn style SVG poster for each project |
 | `js/door.js` | Door spring physics + synthesized sounds |
-| `js/main.js` | Renders lockers + index, door dragging, open/close morph, browsing, filters, deep links |
+| `js/fx.js` | Intro, locker wear, combination dial, custom cursor, spotlight, smooth scroll |
+| `js/vendor/lenis.min.js` | Smooth-scroll library (MIT, see `LENIS-LICENSE`) |
+| `js/main.js` | Renders lockers + index, scroll-driven hallway, shuffle, door dragging, open/close morph, browsing, filters, deep links |
+
+## Experience
+
+- **Intro**: a short curtain holds the page until the web fonts are ready (no text jumping), then the
+  room's lamp flickers on and the hero rises in.
+- **Walk the hallway** (desktop): scrolling moves you along a wall of lockers set in 3D, with
+  ceiling tubes that flicker on, a glossy floor reflection, a soft spotlight that follows your mouse,
+  and a progress line. Phones get a tidy grid instead.
+- **Lived-in lockers**: every door has its own scratches, scuffs near the handle, dents, grime and
+  sometimes an old faded sticker. They're generated from the locker number, so they look the same on every visit.
+- **Combination dials** turn as a door swings ajar. Opening a locker dials its own combination
+  (right–left–right) before the handle unlatches.
+- **Custom cursor**: a gold ring that becomes "Open" over lockers and a grab hand over the door.
+- **Shuffle**: "Open a random locker" spins through names like a slot machine, glides the hallway to
+  the winner and opens it.
+- **Smooth scrolling** with inertia ([Lenis](https://github.com/darkroomengineering/lenis), bundled in `js/vendor/`, MIT).
 
 ## Interactions
 
@@ -52,7 +70,8 @@ site reverses it, so the new project automatically shows up in the first locker.
 - **Sound**: optional latch and slam sounds, synthesized in the browser (toggle in the nav, off by default).
 - **Filter** the project index by topic. Lockers that don't match dim out.
 - **Deep links**: `/#cinesearch`, `/#react-copilot`, … open that locker directly.
-- Keyboard friendly (Enter/Space on the door) and respects `prefers-reduced-motion`.
+- Keyboard friendly (Enter/Space on the door). With `prefers-reduced-motion` the intro, hallway walk
+  and smooth scrolling are skipped and doors move instantly.
 
 ## How the door works
 

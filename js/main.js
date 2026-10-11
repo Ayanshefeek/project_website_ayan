@@ -17,6 +17,10 @@
  * - Opening uses a FLIP "shared element" morph: the stage starts exactly over
  *   the clicked locker and grows to the centre, so the eye never loses track
  *   of which locker was opened.
+ * - On wide screens the hallway is a "track": a tall section with a sticky
+ *   stage, where scroll progress slides a wall of lockers past the camera.
+ *   Scroll position stays the single source of truth (no scroll-jacking), so
+ *   the browser's own scrollbar, keyboard and anchor links keep working.
  * - Projects are stored oldest -> newest in projects.js and reversed here, so
  *   appending a project automatically puts it in the first locker.
  */
@@ -24,11 +28,12 @@
   "use strict";
 
   const { DoorSpring, Sound } = window.DoorKit;
+  const FX = window.FX;
 
   const CONFIG = {
     MORPH_MS: 620,             // locker -> stage grow / shrink
     SLIDE_MS: 360,             // prev/next slide between lockers
-    UNLATCH_MS: 170,           // handle lift before the door starts to swing
+    UNLATCH_MS: 140,           // handle lift before the door starts to swing
     STAGE_PERSPECTIVE: 3400,   // px — must match .stage__scene perspective
     STAGE_MAX_DEG: 98,         // fully open stage door (desktop)
     STAGE_MAX_DEG_SMALL: 110,  // phones: swing further so it clears the view
@@ -39,6 +44,11 @@
     SWIPE_MIN_PX: 60,          // horizontal travel that counts as a swipe
     TAP_SLOP_PX: 5,            // pointer travel below this is a click, not a drag
     HINT_MS: 5200,             // how long the "drag the door" hint stays up
+    TRACK_MIN_WIDTH: 900,      // px — below this the hallway is a plain grid
+    TRACK_SCROLL_RATIO: 1.15,  // px of scroll per px the wall travels
+    TRACK_END_SPACE: 0.78,     // last locker stops this far across the viewport
+    SHUFFLE_STEPS: 16,         // names flashed by the shuffle reel
+    SHUFFLE_MS: 1500,          // total length of the shuffle spin
     NEW_BADGE_COUNT: 1,        // how many of the newest lockers get a "NEW" tag
   };
 
@@ -70,13 +80,17 @@
     `--accent:${t.accent};--accent2:${t.accent2};--wall:${t.wall};--light:${t.light};--display:${t.font};`;
   const vents = (n) => `<div class="vents">${"<i></i>".repeat(n)}</div>`;
   const lockerEl = (i) => row.querySelector(`.locker[data-index="${i}"]`);
+  // Each locker's combination, derived from its number so it never changes.
+  const comboFor = (no) => [(no * 7 + 3) % 40, (no * 13 + 11) % 40, (no * 29 + 5) % 40];
 
   /* ---------- Locker bank ---------- */
 
   function doorFront(p, i) {
     return `
       <div class="door__front">
+        ${FX.wearHTML(Number(p.no))}
         <div class="plate"><span>No.</span>${p.no}</div>
+        ${FX.dialHTML()}
         <div class="label"><span class="label__title">${esc(p.title)}</span><span class="label__period">${esc(p.period)}</span></div>
         <div class="handle"><i></i></div>
         ${vents(5)}
@@ -349,6 +363,7 @@
     close: { k: 170, z: 0.62 },
     bounce: 0.28,
     overswing: 7,
+    closePull: 70, // heavy door: it accelerates into the frame
     onUpdate(a) {
       const p = clamp(a / stageDoor.o.max, 0, 1);
       const rad = (a * Math.PI) / 180;
@@ -373,6 +388,10 @@
       // The whole cabinet shudders a little when the door slams.
       const s = clamp(speed / 450, 0.15, 1);
       const frame = cabinet.querySelector(".cabinet__frame");
+      const dial = cabinet.querySelector(".cabinet__door .dial");
+      if (dial && !reduceMotion) {
+        dial.animate([{ rotate: "0deg" }, { rotate: `${-7 * s}deg` }, { rotate: `${4 * s}deg` }, { rotate: "0deg" }], { duration: 380, easing: "ease-out" });
+      }
       if (frame && !reduceMotion) {
         frame.animate(
           [
@@ -397,8 +416,16 @@
     else interior.setAttribute("inert", "");
   }
 
-  // Lift the handle (with a click), then let the door swing.
-  async function unlatchAndOpen(kick = 70) {
+  // Dial the combination, lift the handle (with a click), then let the door swing.
+  let unlocking = false;
+  async function unlatchAndOpen(kick = 70, quick = false) {
+    if (unlocking) return;
+    unlocking = true;
+    const face = cabinet.querySelector(".cabinet__door .dial__face");
+    const spin = FX.spinDial(face, comboFor(Number(lockers[current].no)), () => Sound.tick(), quick);
+    if (!quick) await spin; // the full combination plays out; a quick twist overlaps the unlatch
+    unlocking = false;
+    if (stageDoor.isOpen || stageDoor.dragging) return;
     cabinet.classList.add("is-unlatched");
     Sound.latch();
     await wait(CONFIG.UNLATCH_MS);
@@ -413,8 +440,9 @@
 
   function toggleDoor() {
     dismissHint();
+    if (unlocking) return;
     if (stageDoor.isOpen) shutDoor();
-    else unlatchAndOpen();
+    else unlatchAndOpen(70, true);
   }
 
   /*
@@ -468,6 +496,10 @@
     return best;
   }
 
+  // When a drag ends over the backdrop, the browser fires a click there;
+  // remember when drags end so that click doesn't close the locker.
+  let lastDragEnd = 0;
+
   function bindDoorDrag() {
     let drag = null;
 
@@ -480,6 +512,8 @@
       drag = { id: e.pointerId, x0: e.clientX, geo, g: solveGrab(stageDoor.a, e.clientX, geo), moved: false, from: stageDoor.a };
       stageDoor.grab();
       cabinet.classList.add("is-grabbing");
+      // Sweeping across the interior while dragging must not select its text.
+      window.getSelection()?.removeAllRanges();
     });
 
     cabinet.addEventListener("pointermove", (e) => {
@@ -499,6 +533,7 @@
     const end = (e) => {
       if (!drag || e.pointerId !== drag.id) return;
       const wasTap = !drag.moved;
+      if (!wasTap) lastDragEnd = performance.now();
       drag = null;
       cabinet.classList.remove("is-grabbing");
       if (wasTap) {
@@ -605,6 +640,7 @@
     fill(index);
     stage.hidden = false;
     document.body.classList.add("no-scroll");
+    if (lenis) lenis.stop();
     stage.classList.add("is-visible");
     origin.classList.add("is-away"); // the locker "leaves" the bank
     hallDoors[index].reset(0);
@@ -621,10 +657,10 @@
       ).finished;
     }
     morphing = false;
-    await wait(90);
-    unlatchAndOpen();
+    await wait(60);
     showHint();
-    await wait(CONFIG.UNLATCH_MS + 300);
+    await unlatchAndOpen();
+    await wait(300);
   }
 
   async function closeLocker() {
@@ -651,6 +687,7 @@
     origin.classList.remove("is-away");
     stage.hidden = true;
     document.body.classList.remove("no-scroll");
+    if (lenis) lenis.start();
     history.replaceState(null, "", location.pathname + location.search);
     origin.focus({ preventScroll: true });
   }
@@ -679,8 +716,8 @@
     hallDoors[index].reset(0);
     await slide(12 * dir, 0, EASE_OUT);
     morphing = false;
-    unlatchAndOpen();
-    await wait(CONFIG.UNLATCH_MS + 250);
+    await unlatchAndOpen();
+    await wait(250);
   }
 
   // Arrow presses made mid-animation add up, so five quick clicks move five
@@ -700,6 +737,7 @@
     $("#dots").innerHTML = "<i></i>".repeat(lockers.length);
 
     stage.addEventListener("click", (e) => {
+      if (performance.now() - lastDragEnd < 300) return;
       if (e.target.closest("[data-close]")) request(closeLocker);
     });
     $("#prev").addEventListener("click", () => step(-1));
@@ -755,6 +793,127 @@
     }
   }
 
+  /* ---------- Scroll-driven hallway ---------- */
+
+  const section = $("#lockers-section");
+  const wall = $("#wall");
+  const track = { on: false, travel: 0, wallLeft: 0 };
+
+  function initTrack() {
+    const mq = window.matchMedia(`(min-width: ${CONFIG.TRACK_MIN_WIDTH}px)`);
+    const layout = () => {
+      track.on = mq.matches && !reduceMotion;
+      document.documentElement.classList.toggle("is-track", track.on);
+      if (!track.on) {
+        section.style.height = "";
+        wall.style.removeProperty("--x");
+        return;
+      }
+      const bankWidth = wall.querySelector(".bank").offsetWidth;
+      track.wallLeft = wall.offsetLeft;
+      track.travel = Math.max(0, bankWidth + track.wallLeft - innerWidth * CONFIG.TRACK_END_SPACE);
+      section.style.height = `${Math.round(innerHeight + track.travel * CONFIG.TRACK_SCROLL_RATIO)}px`;
+      update();
+    };
+    const update = () => {
+      if (!track.on) return;
+      const r = section.getBoundingClientRect();
+      const span = r.height - innerHeight;
+      const p = span > 0 ? clamp(-r.top / span, 0, 1) : 0;
+      wall.style.setProperty("--x", `${(-p * track.travel).toFixed(1)}px`);
+      section.style.setProperty("--prog", p.toFixed(4));
+    };
+    window.addEventListener("scroll", update, { passive: true });
+    window.addEventListener("resize", layout);
+    mq.addEventListener("change", layout);
+    layout();
+  }
+
+  // The scroll position that brings locker i to the middle of the view.
+  function scrollYFor(i) {
+    const slot = lockerEl(i).closest(".slot");
+    const top = section.getBoundingClientRect().top + window.scrollY;
+    if (!track.on) {
+      const r = slot.getBoundingClientRect();
+      return r.top + window.scrollY - (innerHeight - r.height) / 2;
+    }
+    const centre = slot.offsetLeft + slot.offsetWidth / 2;
+    const want = innerWidth * 0.42 - track.wallLeft;
+    const p = track.travel ? clamp((centre - want) / track.travel, 0, 1) : 0;
+    return top + p * (section.offsetHeight - innerHeight);
+  }
+  function glideTo(y, seconds) {
+    if (lenis) lenis.scrollTo(y, { duration: seconds });
+    else window.scrollTo({ top: y, behavior: reduceMotion ? "auto" : "smooth" });
+  }
+
+  // Ceiling lights flicker on the first time the hallway comes into view.
+  function initLights() {
+    const io = new IntersectionObserver(
+      ([en]) => {
+        if (en.isIntersecting) {
+          section.classList.add("lights-on");
+          io.disconnect();
+        }
+      },
+      { threshold: 0.25 }
+    );
+    io.observe(section);
+  }
+
+  /* ---------- Shuffle ---------- */
+
+  let lastShuffle = -1;
+  function initShuffle() {
+    if (!finePointer) $(".hallway__hint").textContent = "Tap a locker to open it";
+    const btn = $("#shuffle");
+    const text = $("#shuffle-text");
+    const idle = text.textContent;
+    let spinning = false;
+
+    btn.addEventListener("click", async () => {
+      if (spinning || !stage.hidden) return;
+      spinning = true;
+      btn.classList.add("is-spinning");
+      let pick;
+      do pick = Math.floor(Math.random() * lockers.length);
+      while (lockers.length > 1 && pick === lastShuffle);
+      lastShuffle = pick;
+
+      // Glide the hallway to the winner while the reel spins.
+      glideTo(scrollYFor(pick), CONFIG.SHUFFLE_MS / 1000);
+
+      // Reel: flash names quickly, slowing down (ease-out on the delays),
+      // flicking each named locker's door as it passes. Lands on `pick`.
+      const steps = reduceMotion ? 1 : CONFIG.SHUFFLE_STEPS;
+      const start = (pick - steps + 1 + lockers.length * 4) % lockers.length;
+      let elapsed = 0;
+      for (let k = 0; k < steps; k++) {
+        const i = (start + k) % lockers.length;
+        text.textContent = `No. ${lockers[i].no} · ${lockers[i].title}`;
+        text.classList.remove("roll");
+        void text.offsetWidth; // restart the roll animation
+        text.classList.add("roll");
+        hallDoors[i].setTarget(CONFIG.PEEK_DEG * 0.6, 50);
+        setTimeout(() => hallDoors[i].setTarget(0), 110);
+        Sound.tick();
+        const t = (k + 1) / steps;
+        const delay = 35 + 190 * t * t * t;
+        elapsed += delay;
+        await wait(delay);
+      }
+      btn.classList.add("is-landed");
+      hallDoors[pick].setTarget(CONFIG.PEEK_DEG);
+      await wait(Math.max(380, CONFIG.SHUFFLE_MS - elapsed));
+      request(() => openLocker(pick));
+      setTimeout(() => {
+        text.textContent = idle;
+        btn.classList.remove("is-spinning", "is-landed");
+        spinning = false;
+      }, 900);
+    });
+  }
+
   /* ---------- Page chrome ---------- */
 
   function renderChrome() {
@@ -777,11 +936,21 @@
     if (i >= 0) request(() => openLocker(i));
   }
 
+  const lenis = FX.initSmoothScroll();
   renderChrome();
   renderBank();
   renderIndex();
   enableTilt();
   bindStage();
   bindSound();
-  openFromHash();
+  initTrack();
+  initLights();
+  initShuffle();
+  FX.initCursor();
+  FX.initSpotlight($("#hall-stage"));
+  // Fonts can change locker widths, so measure the track again once they're in.
+  FX.intro().then(() => {
+    window.dispatchEvent(new Event("resize"));
+    openFromHash();
+  });
 })();

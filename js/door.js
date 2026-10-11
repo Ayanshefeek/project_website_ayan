@@ -157,6 +157,10 @@
       // A closing door is pulled to a point *past* the frame, so it arrives
       // with speed and slams instead of easing politely to a stop at 0.
       const aim = closing ? -closePull : this.target;
+      // Speed a door picks up in one step just from resting against the frame
+      // under that pull. Hits slower than this are contact, not impacts —
+      // otherwise a strong pull makes the door micro-bounce forever.
+      const contact = 40 + k * closePull * SUBSTEP * 2;
       for (let t = 0; t < dt; t += SUBSTEP) {
         const h = Math.min(SUBSTEP, dt - t);
         this.v += (-k * (this.a - aim) - c * this.v) * h;
@@ -165,8 +169,8 @@
         if (this.a < 0) {
           const speed = -this.v;
           this.a = 0;
-          this.v = speed > 40 ? speed * bounce : 0;
-          if (speed > 40) this.o.onImpact(speed);
+          this.v = speed > contact ? speed * bounce : 0;
+          if (speed > contact) this.o.onImpact(speed);
         }
         // The hinge stop on the open side.
         if (this.a > max + overswing) {
@@ -238,6 +242,10 @@
       if (!this.enabled) return;
       this._burst({ freq: 3200, q: 4, dur: 0.035, gain: 0.25, type: "highpass" });
       this._tone(1400, 0.04, 0.05);
+    },
+    tick() {
+      if (!this.enabled) return;
+      this._burst({ freq: 4200, q: 8, dur: 0.018, gain: 0.12, type: "bandpass" });
     },
     slam(speed) {
       if (!this.enabled) return;
