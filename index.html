@@ -36,6 +36,10 @@
       <a href="#lockers-section">Lockers</a>
       <a href="#index">Index</a>
       <a href="https://github.com/Ayanshefeek" target="_blank" rel="noopener">GitHub <span aria-hidden="true">↗</span></a>
+      <button class="sound" id="sound" aria-pressed="false" title="Door sounds">
+        <span class="sound__bars" aria-hidden="true"><i></i><i></i><i></i></span>
+        <span class="sound__label">Sound off</span>
+      </button>
     </div>
   </nav>
 
@@ -64,7 +68,7 @@
       <div class="bank">
         <div class="bank__row" id="lockers" role="list"></div>
       </div>
-      <p class="hallway__hint">Hover to peek · click to open · <kbd>←</kbd> <kbd>→</kbd> to browse</p>
+      <p class="hallway__hint">Hover to peek · click to open · drag the door to swing it · <kbd>←</kbd> <kbd>→</kbd> to browse</p>
     </section>
 
     <section class="index" id="index" aria-labelledby="index-title">
@@ -95,8 +99,11 @@
       </button>
     </div>
     <div class="stage__scene" id="scene">
-      <div class="cabinet" id="cabinet" role="dialog" aria-modal="true" aria-labelledby="cabinet-title"></div>
+      <div class="cabinet" id="cabinet" role="dialog" aria-modal="true" aria-labelledby="cabinet-title" tabindex="-1"></div>
     </div>
+    <p class="stage__hint" id="hint" aria-hidden="true">
+      <span class="stage__hint-hand"></span>Grab the door and swing it — or click to open &amp; close
+    </p>
     <div class="stage__nav">
       <button class="nav-btn" id="prev" aria-label="Previous locker">
         <span aria-hidden="true">←</span><span class="nav-btn__label" id="prev-label"></span>
@@ -110,6 +117,7 @@
 
   <script src="js/projects.js"></script>
   <script src="js/art.js"></script>
+  <script src="js/door.js"></script>
   <script src="js/main.js"></script>
 </body>
 </html>

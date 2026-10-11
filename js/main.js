@@ -6,40 +6,57 @@
  *   door). A WebGL scene (three.js) was considered, but CSS 3D keeps the text
  *   real, selectable and accessible, needs no build step, and runs smoothly
  *   on phones — which matters more for a project showcase than raw spectacle.
- * - Projects are stored oldest -> newest in projects.js and reversed here, so
- *   appending a project automatically puts it in the first locker.
+ * - Doors are driven by the spring physics in door.js, not CSS transitions,
+ *   so they can be grabbed, dragged, flicked and let go of mid-swing. The
+ *   door angle is written to a CSS variable (--a) and everything that should
+ *   respond to it — the inner light, the door's shadow, the content reveal,
+ *   the cabinet sliding aside — reads from that one number.
+ * - Dragging maps the pointer to a door angle by projecting the door through
+ *   the same perspective CSS uses, so the edge you grab stays under your
+ *   finger even as it swings toward you and grows.
  * - Opening uses a FLIP "shared element" morph: the stage starts exactly over
  *   the clicked locker and grows to the centre, so the eye never loses track
- *   of which locker was opened. The morph runs on the stage scene with the
- *   Web Animations API, while door/open state stays in CSS classes on the
- *   cabinet — keeping the two on different elements stops them fighting over
- *   the same `transform`.
- * - Clicks that arrive mid-animation are queued (latest wins) rather than
- *   dropped, so rapid browsing never feels unresponsive.
+ *   of which locker was opened.
+ * - Projects are stored oldest -> newest in projects.js and reversed here, so
+ *   appending a project automatically puts it in the first locker.
  */
 (() => {
   "use strict";
 
+  const { DoorSpring, Sound } = window.DoorKit;
+
   const CONFIG = {
-    DOOR_SWING_MS: 950,        // must match --swing in styles.css
-    DOOR_CLOSE_MS: 620,        // must match --swing-close in styles.css
     MORPH_MS: 620,             // locker -> stage grow / shrink
     SLIDE_MS: 360,             // prev/next slide between lockers
-    TILT_MAX_DEG: 7,           // per-locker pointer tilt strength
+    UNLATCH_MS: 170,           // handle lift before the door starts to swing
+    STAGE_PERSPECTIVE: 3400,   // px — must match .stage__scene perspective
+    STAGE_MAX_DEG: 98,         // fully open stage door (desktop)
+    STAGE_MAX_DEG_SMALL: 110,  // phones: swing further so it clears the view
+    CABINET_SHIFT: -0.17,      // desktop: cabinet slides left by this × width when open
+    PEEK_DEG: 24,              // hallway door angle on hover
+    TILT_MAX_DEG: 6,           // per-locker pointer tilt strength
     TILT_EASE: 0.12,           // 0..1, lower = smoother/laggier tilt
     SWIPE_MIN_PX: 60,          // horizontal travel that counts as a swipe
+    TAP_SLOP_PX: 5,            // pointer travel below this is a click, not a drag
+    HINT_MS: 5200,             // how long the "drag the door" hint stays up
     NEW_BADGE_COUNT: 1,        // how many of the newest lockers get a "NEW" tag
   };
 
-  const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const reduceMotion = window.DoorKit.reduceMotion;
   const finePointer = window.matchMedia("(pointer: fine)").matches;
+  const wide = window.matchMedia("(min-width: 900px)");
   const EASE_OUT = "cubic-bezier(.16, 1, .3, 1)";
   const EASE_IN_OUT = "cubic-bezier(.65, 0, .35, 1)";
 
   const wait = (ms) => new Promise((r) => setTimeout(r, reduceMotion ? 0 : ms));
+  const clamp = (v, lo, hi) => Math.min(Math.max(v, lo), hi);
   const esc = (s) =>
     String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const $ = (sel) => document.querySelector(sel);
+  const store = {
+    get(k) { try { return localStorage.getItem(k); } catch { return null; } },
+    set(k, v) { try { localStorage.setItem(k, v); } catch { /* private mode */ } },
+  };
 
   // Newest first. `no` keeps the chronological locker number (oldest = 01).
   const lockers = window.PROJECTS.map((p, i) => ({ ...p, no: String(i + 1).padStart(2, "0") })).reverse();
@@ -68,6 +85,9 @@
       </div>`;
   }
 
+  // One spring per hallway door: hover swings it ajar, leaving lets it clack shut.
+  const hallDoors = [];
+
   function renderBank() {
     row.innerHTML = lockers
       .map(
@@ -84,6 +104,26 @@
         </div>`
       )
       .join("");
+
+    row.querySelectorAll(".locker").forEach((el, i) => {
+      const door = el.querySelector(".locker__door");
+      hallDoors[i] = new DoorSpring({
+        max: CONFIG.PEEK_DEG,
+        open: { k: 140, z: 0.55 },
+        close: { k: 190, z: 0.7 },
+        bounce: 0.35,
+        overswing: 4,
+        onUpdate: (a) => {
+          door.style.setProperty("--a", a.toFixed(2));
+          el.style.setProperty("--glow", clamp(a / CONFIG.PEEK_DEG, 0, 1).toFixed(3));
+        },
+      });
+      const peek = (on) => hallDoors[i].setTarget(on ? CONFIG.PEEK_DEG : 0, on ? 60 : -40);
+      el.addEventListener("pointerenter", () => peek(true));
+      el.addEventListener("pointerleave", () => peek(false));
+      el.addEventListener("focus", () => peek(true));
+      el.addEventListener("blur", () => peek(false));
+    });
 
     row.addEventListener("click", (e) => {
       // A tilted locker can hand the hit-test to its slot wrapper rather than
@@ -124,7 +164,7 @@
     };
 
     function frame() {
-      let active = false;
+      let activeTilt = false;
       states.forEach((s, el) => {
         s.rx += (s.tx - s.rx) * CONFIG.TILT_EASE;
         s.ry += (s.ty - s.ry) * CONFIG.TILT_EASE;
@@ -134,10 +174,10 @@
         el.style.setProperty("--ry", `${s.ry.toFixed(3)}deg`);
         el.style.setProperty("--mx", `${s.mx.toFixed(1)}%`);
         el.style.setProperty("--my", `${s.my.toFixed(1)}%`);
-        if (Math.abs(s.tx - s.rx) > 0.01 || Math.abs(s.ty - s.ry) > 0.01) active = true;
+        if (Math.abs(s.tx - s.rx) > 0.01 || Math.abs(s.ty - s.ry) > 0.01) activeTilt = true;
       });
-      running = active;
-      if (active) requestAnimationFrame(frame);
+      running = activeTilt;
+      if (activeTilt) requestAnimationFrame(frame);
     }
     const kick = () => {
       if (!running) {
@@ -159,13 +199,6 @@
       s.tmy = y * 100;
       kick();
     });
-    row.addEventListener(
-      "pointerleave",
-      () => {
-        states.forEach((s) => Object.assign(s, { tx: 0, ty: 0, tmx: 50, tmy: 50 }));
-        kick();
-      }
-    );
     row.addEventListener("pointerout", (e) => {
       const el = e.target.closest(".locker");
       if (el && !el.contains(e.relatedTarget)) {
@@ -204,7 +237,7 @@
     // Hovering an index row peeks the matching locker's door open.
     const peek = (e, on) => {
       const li = e.target.closest(".entry");
-      if (li) lockerEl(li.dataset.index).classList.toggle("is-peek", on);
+      if (li && !li.contains(e.relatedTarget)) hallDoors[li.dataset.index].setTarget(on ? CONFIG.PEEK_DEG : 0);
     };
     list.addEventListener("pointerover", (e) => peek(e, true));
     list.addEventListener("pointerout", (e) => peek(e, false));
@@ -236,7 +269,7 @@
     });
   }
 
-  /* ---------- Stage: open / close / browse ---------- */
+  /* ---------- Stage: the big locker ---------- */
 
   function cabinetHTML(p, i) {
     const stickers = p.stack
@@ -263,21 +296,20 @@
             </figure>
 
             <div class="details">
-            <div class="notes">
-              <section class="reveal" ${r()}>
-                <h3 class="scrawl">About this..</h3>
-                <p>${esc(p.about)}</p>
+              <div class="notes">
+                <section class="reveal" ${r()}>
+                  <h3 class="scrawl">About this..</h3>
+                  <p>${esc(p.about)}</p>
+                </section>
+                <section class="reveal" ${r()}>
+                  <h3 class="scrawl">Built to —</h3>
+                  <p>${esc(p.mission)}</p>
+                </section>
+              </div>
+              <section class="inside reveal" ${r()}>
+                <h3 class="scrawl">What's inside</h3>
+                <ul>${p.highlights.map((h) => `<li>${esc(h)}</li>`).join("")}</ul>
               </section>
-              <section class="reveal" ${r()}>
-                <h3 class="scrawl">Built to —</h3>
-                <p>${esc(p.mission)}</p>
-              </section>
-            </div>
-
-            <section class="inside reveal" ${r()}>
-              <h3 class="scrawl">What's inside</h3>
-              <ul>${p.highlights.map((h) => `<li>${esc(h)}</li>`).join("")}</ul>
-            </section>
             </div>
 
             <div class="interior__foot reveal" ${r()}>
@@ -292,7 +324,8 @@
           </div>
         </div>
 
-        <div class="cabinet__door" role="button" tabindex="0" aria-label="Open or close the locker door">
+        <div class="cabinet__door" role="button" tabindex="0" aria-label="Locker door — drag to swing it, or press Enter to open or close">
+          <i class="door__edge"></i>
           <div class="door__face">${doorFront(p, i)}</div>
           <div class="door__face door__back">
             <div class="brand-sticker">${esc(p.title)}<small>locker ${p.no}</small></div>
@@ -305,8 +338,224 @@
       </div>`;
   }
 
+  const stageMax = () => (wide.matches ? CONFIG.STAGE_MAX_DEG : CONFIG.STAGE_MAX_DEG_SMALL);
+  let revealed = false;
+  let lit = false;
+
+  // Everything inside the cabinet follows the door's live angle.
+  const stageDoor = new DoorSpring({
+    max: CONFIG.STAGE_MAX_DEG,
+    open: { k: 62, z: 0.58 },
+    close: { k: 170, z: 0.62 },
+    bounce: 0.28,
+    overswing: 7,
+    onUpdate(a) {
+      const p = clamp(a / stageDoor.o.max, 0, 1);
+      const rad = (a * Math.PI) / 180;
+      cabinet.style.setProperty("--a", a.toFixed(2));
+      cabinet.style.setProperty("--p", p.toFixed(4));
+      // Faces darken as they turn away from the light.
+      cabinet.style.setProperty("--shade", ((1 - Math.abs(Math.cos(rad))) * 0.5).toFixed(3));
+
+      if (!lit && p > 0.12) {
+        lit = true;
+        cabinet.classList.add("is-lit");
+      } else if (lit && p < 0.02) {
+        lit = false;
+        cabinet.classList.remove("is-lit");
+      }
+      if (!revealed && p > 0.5) setRevealed(true);
+      else if (revealed && p < 0.18) setRevealed(false);
+    },
+    onImpact(speed) {
+      Sound.slam(speed);
+      cabinet.classList.remove("is-unlatched");
+      // The whole cabinet shudders a little when the door slams.
+      const s = clamp(speed / 450, 0.15, 1);
+      const frame = cabinet.querySelector(".cabinet__frame");
+      if (frame && !reduceMotion) {
+        frame.animate(
+          [
+            { transform: "none" },
+            { transform: `translate3d(${-3 * s}px, ${1 * s}px, 0)` },
+            { transform: `translate3d(${2 * s}px, 0, 0)` },
+            { transform: `translate3d(${-1 * s}px, 0, 0)` },
+            { transform: "none" },
+          ],
+          { duration: 260, easing: "ease-out" }
+        );
+      }
+    },
+  });
+
+  function setRevealed(on) {
+    revealed = on;
+    cabinet.classList.toggle("is-revealed", on);
+    const interior = cabinet.querySelector(".cabinet__interior");
+    if (!interior) return;
+    if (on) interior.removeAttribute("inert");
+    else interior.setAttribute("inert", "");
+  }
+
+  // Lift the handle (with a click), then let the door swing.
+  async function unlatchAndOpen(kick = 70) {
+    cabinet.classList.add("is-unlatched");
+    Sound.latch();
+    await wait(CONFIG.UNLATCH_MS);
+    stageDoor.setTarget(stageDoor.o.max, kick);
+    setTimeout(() => cabinet.classList.remove("is-unlatched"), 380);
+  }
+
+  function shutDoor(kick = -140) {
+    stageDoor.setTarget(0, kick);
+    return stageDoor.settled();
+  }
+
+  function toggleDoor() {
+    dismissHint();
+    if (stageDoor.isOpen) shutDoor();
+    else unlatchAndOpen();
+  }
+
+  /*
+   * Drag-to-swing. We need the door angle whose grabbed point lands under the
+   * pointer. The door turns about its right edge, toward the viewer, inside a
+   * CSS perspective — so the grabbed point at distance g from the hinge sits
+   * at  X = hinge − g·cos(a),  Z = g·sin(a), and appears on screen at
+   *     x = ox + (X − ox) · P / (P − Z)
+   * (ox = perspective origin, P = perspective). That isn't invertible in
+   * closed form once the cabinet's slide-aside is included, so we search the
+   * angle numerically near the previous one — a few hundred cheap evaluations
+   * per pointer move.
+   */
+  function measureGeometry() {
+    const r = scene.getBoundingClientRect();
+    return {
+      left: r.left,
+      width: r.width,
+      ox: r.left + r.width / 2,
+      P: CONFIG.STAGE_PERSPECTIVE,
+      shift: wide.matches ? CONFIG.CABINET_SHIFT * r.width : 0,
+      max: stageDoor.o.max,
+    };
+  }
+  function projectX(a, g, geo) {
+    const p = clamp(a / geo.max, 0, 1);
+    const hinge = geo.left + geo.width + geo.shift * p;
+    const rad = (a * Math.PI) / 180;
+    const X = hinge - g * Math.cos(rad);
+    const Z = Math.min(g * Math.sin(rad), geo.P * 0.9);
+    return geo.ox + ((X - geo.ox) * geo.P) / (geo.P - Z);
+  }
+  function solveGrab(a, x, geo) {
+    let best = geo.width * 0.6;
+    let err = Infinity;
+    for (let g = geo.width * 0.12; g <= geo.width; g += geo.width / 240) {
+      const e = Math.abs(projectX(a, g, geo) - x);
+      if (e < err) [err, best] = [e, g];
+    }
+    return best;
+  }
+  function solveAngle(x, g, prev, geo) {
+    let best = prev;
+    let err = Infinity;
+    const lo = Math.max(-2, prev - 50);
+    const hi = Math.min(geo.max + 14, prev + 50);
+    for (let a = lo; a <= hi; a += 0.25) {
+      const e = Math.abs(projectX(a, g, geo) - x);
+      if (e < err) [err, best] = [e, a];
+    }
+    return best;
+  }
+
+  function bindDoorDrag() {
+    let drag = null;
+
+    cabinet.addEventListener("pointerdown", (e) => {
+      const door = e.target.closest(".cabinet__door");
+      if (!door || e.button !== 0 || morphing || e.target.closest("a")) return;
+      e.preventDefault();
+      door.setPointerCapture(e.pointerId);
+      const geo = measureGeometry();
+      drag = { id: e.pointerId, x0: e.clientX, geo, g: solveGrab(stageDoor.a, e.clientX, geo), moved: false, from: stageDoor.a };
+      stageDoor.grab();
+      cabinet.classList.add("is-grabbing");
+    });
+
+    cabinet.addEventListener("pointermove", (e) => {
+      if (!drag || e.pointerId !== drag.id) return;
+      if (!drag.moved && Math.abs(e.clientX - drag.x0) < CONFIG.TAP_SLOP_PX) return;
+      if (!drag.moved) {
+        drag.moved = true;
+        dismissHint(true);
+        if (drag.from < 1) {
+          cabinet.classList.add("is-unlatched");
+          Sound.latch();
+        }
+      }
+      stageDoor.drag(solveAngle(e.clientX, drag.g, stageDoor.a, drag.geo));
+    });
+
+    const end = (e) => {
+      if (!drag || e.pointerId !== drag.id) return;
+      const wasTap = !drag.moved;
+      drag = null;
+      cabinet.classList.remove("is-grabbing");
+      if (wasTap) {
+        stageDoor.dragging = false;
+        toggleDoor();
+      } else {
+        stageDoor.release();
+        setTimeout(() => cabinet.classList.remove("is-unlatched"), 300);
+      }
+    };
+    cabinet.addEventListener("pointerup", end);
+    cabinet.addEventListener("pointercancel", end);
+
+    cabinet.addEventListener("keydown", (e) => {
+      if ((e.key === "Enter" || e.key === " ") && e.target.classList.contains("cabinet__door")) {
+        e.preventDefault();
+        toggleDoor();
+      }
+    });
+  }
+
+  /* ---------- Hint + sound toggle ---------- */
+
+  let hintTimer = 0;
+  function showHint() {
+    if (store.get("lockers.dragged")) return;
+    const hint = $("#hint");
+    hint.classList.add("is-shown");
+    clearTimeout(hintTimer);
+    hintTimer = setTimeout(() => hint.classList.remove("is-shown"), CONFIG.HINT_MS);
+  }
+  function dismissHint(learned) {
+    $("#hint").classList.remove("is-shown");
+    if (learned) store.set("lockers.dragged", "1");
+  }
+
+  function bindSound() {
+    const btn = $("#sound");
+    const render = () => {
+      btn.setAttribute("aria-pressed", String(Sound.enabled));
+      btn.querySelector(".sound__label").textContent = Sound.enabled ? "Sound on" : "Sound off";
+    };
+    Sound.enabled = store.get("lockers.sound") === "1";
+    render();
+    btn.addEventListener("click", () => {
+      Sound.enabled = !Sound.enabled;
+      store.set("lockers.sound", Sound.enabled ? "1" : "0");
+      render();
+      Sound.latch();
+    });
+  }
+
+  /* ---------- Stage: open / close / browse ---------- */
+
   let current = -1;
   let busy = false;
+  let morphing = false;
   let pending = null;
 
   // Run an action now, or once the running animation finishes (latest wins).
@@ -335,8 +584,11 @@
     const p = lockers[index];
     current = index;
     cabinet.setAttribute("style", themeStyle(p.theme));
-    cabinet.classList.remove("is-open");
+    cabinet.className = "cabinet";
+    revealed = lit = false;
     cabinet.innerHTML = cabinetHTML(p, index);
+    stageDoor.o.max = stageMax();
+    stageDoor.reset(0);
     $("#stage-no").textContent = p.no;
     $("#stage-title").textContent = p.title;
     const prev = lockers[(index - 1 + lockers.length) % lockers.length];
@@ -355,7 +607,10 @@
     document.body.classList.add("no-scroll");
     stage.classList.add("is-visible");
     origin.classList.add("is-away"); // the locker "leaves" the bank
+    hallDoors[index].reset(0);
+    cabinet.focus({ preventScroll: true });
 
+    morphing = true;
     if (!reduceMotion) {
       await scene.animate(
         [
@@ -365,16 +620,24 @@
         { duration: CONFIG.MORPH_MS, easing: EASE_OUT }
       ).finished;
     }
-    setDoor(true);
-    await wait(CONFIG.DOOR_SWING_MS * 0.5);
+    morphing = false;
+    await wait(90);
+    unlatchAndOpen();
+    showHint();
+    await wait(CONFIG.UNLATCH_MS + 300);
   }
 
   async function closeLocker() {
     if (stage.hidden) return;
     const origin = lockerEl(current);
-    setDoor(false);
-    await wait(CONFIG.DOOR_CLOSE_MS);
+    dismissHint();
+    stageDoor.dragging = false;
+    if (stageDoor.a > 0.5 || stageDoor.isOpen) {
+      await shutDoor(-160);
+      await wait(120);
+    }
     stage.classList.remove("is-visible");
+    morphing = true;
     if (!reduceMotion) {
       await scene.animate(
         [
@@ -384,6 +647,7 @@
         { duration: CONFIG.MORPH_MS * 0.85, easing: EASE_IN_OUT }
       ).finished;
     }
+    morphing = false;
     origin.classList.remove("is-away");
     stage.hidden = true;
     document.body.classList.remove("no-scroll");
@@ -394,11 +658,10 @@
   // Close the door, slide the cabinet out, slide the next one in, open it.
   async function browseTo(index, dir = Math.sign(index - current) || 1) {
     if (index === current) return;
+    dismissHint();
     lockerEl(current).classList.remove("is-away");
-    if (cabinet.classList.contains("is-open")) {
-      setDoor(false);
-      await wait(CONFIG.DOOR_CLOSE_MS * 0.8);
-    }
+    stageDoor.dragging = false;
+    if (stageDoor.a > 0.5 || stageDoor.isOpen) await shutDoor(-200);
     const slide = (from, to, easing) =>
       reduceMotion
         ? Promise.resolve()
@@ -409,12 +672,15 @@
             ],
             { duration: CONFIG.SLIDE_MS, easing }
           ).finished;
+    morphing = true;
     await slide(0, -12 * dir, EASE_IN_OUT);
     fill(index);
     lockerEl(index).classList.add("is-away");
+    hallDoors[index].reset(0);
     await slide(12 * dir, 0, EASE_OUT);
-    setDoor(true);
-    await wait(CONFIG.DOOR_SWING_MS * 0.5);
+    morphing = false;
+    unlatchAndOpen();
+    await wait(CONFIG.UNLATCH_MS + 250);
   }
 
   // Arrow presses made mid-animation add up, so five quick clicks move five
@@ -429,34 +695,12 @@
     });
   };
 
-  function setDoor(open) {
-    cabinet.classList.toggle("is-open", open);
-    const interior = cabinet.querySelector(".cabinet__interior");
-    if (open) {
-      interior.removeAttribute("inert");
-      const link = cabinet.querySelector("a.repo-btn");
-      (link || cabinet.querySelector(".cabinet__door")).focus({ preventScroll: true });
-    } else {
-      interior.setAttribute("inert", "");
-    }
-  }
-
   function bindStage() {
     $("#stage-total").textContent = String(lockers.length).padStart(2, "0");
     $("#dots").innerHTML = "<i></i>".repeat(lockers.length);
 
     stage.addEventListener("click", (e) => {
-      if (e.target.closest("[data-close]")) return request(closeLocker);
-      // Clicking the door toggles it, like a real locker.
-      if (e.target.closest(".cabinet__door") && !e.target.closest("a")) {
-        setDoor(!cabinet.classList.contains("is-open"));
-      }
-    });
-    cabinet.addEventListener("keydown", (e) => {
-      if ((e.key === "Enter" || e.key === " ") && e.target.classList.contains("cabinet__door")) {
-        e.preventDefault();
-        setDoor(!cabinet.classList.contains("is-open"));
-      }
+      if (e.target.closest("[data-close]")) request(closeLocker);
     });
     $("#prev").addEventListener("click", () => step(-1));
     $("#next").addEventListener("click", () => step(1));
@@ -469,18 +713,29 @@
       else if (e.key === "Tab") trapFocus(e);
     });
 
-    // Swipe left/right on touch screens to browse lockers.
-    let sx = 0, sy = 0;
-    stage.addEventListener("touchstart", (e) => ([sx, sy] = [e.touches[0].clientX, e.touches[0].clientY]), { passive: true });
+    // Swipe left/right on touch screens to browse — but not when the swipe
+    // starts on the door, which is being dragged instead.
+    let sx = 0, sy = 0, onDoor = false;
+    stage.addEventListener(
+      "touchstart",
+      (e) => {
+        [sx, sy] = [e.touches[0].clientX, e.touches[0].clientY];
+        onDoor = !!e.target.closest(".cabinet__door");
+      },
+      { passive: true }
+    );
     stage.addEventListener(
       "touchend",
       (e) => {
+        if (onDoor) return;
         const dx = e.changedTouches[0].clientX - sx;
         const dy = e.changedTouches[0].clientY - sy;
         if (Math.abs(dx) > CONFIG.SWIPE_MIN_PX && Math.abs(dx) > Math.abs(dy) * 1.5) step(dx < 0 ? 1 : -1);
       },
       { passive: true }
     );
+
+    bindDoorDrag();
   }
 
   // Keep keyboard focus inside the open dialog.
@@ -527,5 +782,6 @@
   renderIndex();
   enableTilt();
   bindStage();
+  bindSound();
   openFromHash();
 })();

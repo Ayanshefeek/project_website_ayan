@@ -34,8 +34,6 @@
   --serif: "Instrument Serif", "Playfair Display", Georgia, serif;
   --sans: "Inter", system-ui, sans-serif;
   --mono: "JetBrains Mono", ui-monospace, monospace;
-  --swing: 950ms;
-  --swing-close: 620ms;
   --ease-out: cubic-bezier(.16, 1, .3, 1);
   --gutter: clamp(16px, 4vw, 48px);
   color-scheme: dark;
@@ -110,6 +108,20 @@ kbd {
   transform: scaleX(0); transform-origin: right; transition: transform .35s var(--ease-out);
 }
 .nav__links a:hover { color: var(--ink); }
+.nav__links { align-items: center; }
+.sound {
+  display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 40px; cursor: pointer;
+  background: transparent; border: 1px solid var(--line); color: var(--muted); font: 500 12px var(--sans);
+  transition: color .25s, border-color .25s;
+}
+.sound:hover { color: var(--ink); border-color: rgba(236,231,220,.3); }
+.sound__bars { display: inline-flex; align-items: end; gap: 2px; height: 10px; }
+.sound__bars i { width: 2px; height: 3px; background: currentColor; border-radius: 1px; transition: height .3s; }
+.sound[aria-pressed="true"] { color: var(--gold); border-color: color-mix(in srgb, var(--gold) 40%, transparent); }
+.sound[aria-pressed="true"] .sound__bars i { animation: eq 1s ease-in-out infinite; }
+.sound[aria-pressed="true"] .sound__bars i:nth-child(2) { animation-delay: -.3s; }
+.sound[aria-pressed="true"] .sound__bars i:nth-child(3) { animation-delay: -.6s; }
+@keyframes eq { 50% { height: 10px; } }
 .nav__links a:hover::after { transform: scaleX(1); transform-origin: left; }
 
 .hero { max-width: 1200px; margin: 0 auto; padding: clamp(130px, 18vh, 190px) var(--gutter) 60px; }
@@ -194,22 +206,24 @@ kbd {
   background: radial-gradient(ellipse at 50% 0%, color-mix(in srgb, var(--light) 20%, var(--wall)), var(--wall) 70%);
   box-shadow: inset 0 0 0 5px #24272b, inset 0 0 40px rgba(0,0,0,.9);
 }
+/* Light and poster glimpse follow the door's live angle (--glow, 0..1). */
 .locker__light {
   position: absolute; top: 12px; left: 20%; right: 20%; height: 4px; border-radius: 4px;
   background: var(--light); box-shadow: 0 0 22px 6px color-mix(in srgb, var(--light) 55%, transparent);
-  opacity: 0; transition: opacity .5s ease .1s;
+  opacity: var(--glow, 0);
 }
-.locker__peek { position: absolute; inset: 22% 10% 30%; opacity: 0; transition: opacity .6s ease .1s; }
-.locker:is(:hover, :focus-visible, .is-peek, .is-away) .locker__light { opacity: 1; }
-.locker:is(:hover, :focus-visible, .is-peek, .is-away) .locker__peek { opacity: .85; }
+.locker__peek { position: absolute; inset: 22% 10% 30%; opacity: calc(var(--glow, 0) * .85); }
+.locker.is-away .locker__light { opacity: 1; }
+.locker.is-away .locker__peek { opacity: .85; }
 
+/* Angle (--a, degrees) is set every frame by the spring in door.js. */
 .locker__door {
   position: absolute; inset: 0; transform-origin: right center; transform-style: preserve-3d;
-  transition: transform .8s var(--ease-out), opacity .3s ease;
+  transform: rotateY(calc(var(--a, 0) * 1deg));
+  transition: opacity .3s ease;
   will-change: transform;
 }
-.locker:is(:hover, :focus-visible, .is-peek) .locker__door { transform: rotateY(26deg); }
-.locker.is-away .locker__door { opacity: 0; transform: rotateY(70deg); }
+.locker.is-away .locker__door { opacity: 0; }
 
 /* Metal door face — shared by the bank lockers and the big cabinet door. */
 .door__front {
@@ -367,22 +381,42 @@ kbd {
 .nav-btn__label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .nav-btn:hover { color: var(--ink); background: rgba(255,255,255,.08); border-color: rgba(236,231,220,.3); }
 .dots { display: flex; gap: 8px; }
+
+/* First-visit hint: teaches that the door can be grabbed. */
+.stage__hint {
+  position: absolute; left: 50%; top: 74px; z-index: 4; margin: 0;
+  display: flex; align-items: center; gap: 10px; padding: 10px 16px 10px 12px; border-radius: 40px;
+  background: rgba(20, 20, 23, .82); border: 1px solid var(--line);
+  backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+  font: 500 13px var(--sans); color: var(--ink); white-space: nowrap; pointer-events: none;
+  opacity: 0; transform: translate(-50%, -10px); transition: opacity .5s ease, transform .6s var(--ease-out);
+}
+.stage__hint.is-shown { opacity: 1; transform: translate(-50%, 0); transition-delay: .9s; }
+.stage__hint-hand {
+  width: 22px; height: 22px; border-radius: 50%; border: 1.5px solid var(--gold); position: relative;
+  animation: hand 1.8s var(--ease-out) infinite;
+}
+.stage__hint-hand::after { content: ""; position: absolute; inset: 6px; border-radius: 50%; background: var(--gold); }
+@keyframes hand { 0%, 15% { transform: translateX(0); } 60% { transform: translateX(14px); } 100% { transform: translateX(0); } }
 .dots i { width: 6px; height: 6px; border-radius: 6px; background: rgba(236,231,220,.18); transition: width .45s var(--ease-out), background .3s; }
 .dots i.is-on { width: 22px; background: var(--gold); }
 
 .stage__scene {
-  position: relative; z-index: 1; perspective: 2200px; perspective-origin: 50% 40%;
+  position: relative; z-index: 1; perspective: 3400px; perspective-origin: 50% 40%;
   width: min(980px, 94vw); height: min(100%, 860px);
   transform-origin: 0 0; will-change: transform;
 }
+/* --a = door angle (deg), --p = how open (0..1), --shade = face darkening.
+   All three are written by main.js from the door spring every frame. */
 .cabinet {
-  position: absolute; inset: 0; transform-style: preserve-3d;
-  transition: transform 1s var(--ease-out);
+  --a: 0; --p: 0; --shade: 0;
+  position: absolute; inset: 0; transform-style: preserve-3d; outline: none;
 }
-/* On wide screens slide left so the swung door has room on the right. */
+/* On wide screens the cabinet slides aside as the door opens, so the door
+   has room to swing (keep in sync with CABINET_SHIFT in main.js). */
 @media (min-width: 900px) {
   .stage__scene { width: min(820px, 74vw); }
-  .cabinet.is-open { transform: translateX(-13%) rotateY(6deg); }
+  .cabinet { transform: translateX(calc(var(--p) * -17%)); }
 }
 
 .cabinet__frame {
@@ -401,17 +435,16 @@ kbd {
 }
 .cabinet__interior::after { /* the door's shadow, lifting as it opens */
   content: ""; position: absolute; inset: 0; pointer-events: none; z-index: 3;
-  background: linear-gradient(270deg, rgba(0,0,0,.75), rgba(0,0,0,.2) 60%, transparent);
-  transition: opacity .9s ease .1s;
+  background: linear-gradient(270deg, rgba(0,0,0,.8), rgba(0,0,0,.35) 55%, rgba(0,0,0,.1));
+  opacity: calc(1 - var(--p) * 1.5);
 }
-.cabinet.is-open .cabinet__interior::after { opacity: 0; }
 .tube {
   position: absolute; top: 10px; left: 50%; width: 46%; height: 8px; transform: translateX(-50%); z-index: 2;
   border-radius: 6px; background: linear-gradient(180deg, #fff, var(--light));
   box-shadow: 0 0 30px 10px color-mix(in srgb, var(--light) 45%, transparent), 0 0 90px 30px color-mix(in srgb, var(--light) 15%, transparent);
-  opacity: .2; transition: opacity .4s ease;
+  opacity: calc(.15 + var(--p) * .85);
 }
-.cabinet.is-open .tube { opacity: 1; animation: flicker 1s steps(1) .2s 1; }
+.cabinet.is-lit .tube { animation: flicker .9s steps(1) 1; }
 @keyframes flicker { 0% { opacity: .3; } 18% { opacity: 1; } 26% { opacity: .45; } 40% { opacity: 1; } }
 
 .interior__scroll {
@@ -422,10 +455,10 @@ kbd {
 }
 /* Contents fade up one after another once the door has swung. */
 .reveal { opacity: 0; translate: 0 16px; transition: opacity .4s ease, translate .4s ease; }
-.cabinet.is-open .reveal {
+.cabinet.is-revealed .reveal {
   opacity: 1; translate: 0 0;
   transition: opacity .7s ease, translate .9s var(--ease-out);
-  transition-delay: calc(280ms + var(--d) * 90ms);
+  transition-delay: calc(80ms + var(--d) * 80ms);
 }
 
 .poster {
@@ -495,18 +528,27 @@ kbd {
 .tablet { right: 22%; width: 140px; height: 9px; border-radius: 4px; background: #0d0d0f; box-shadow: inset 0 1px 0 rgba(255,255,255,.2), 0 4px 6px rgba(0,0,0,.5); }
 .buds { right: 8%; width: 42px; height: 22px; border-radius: 12px 12px 6px 6px; background: linear-gradient(180deg, #f2f2f2, #c7c7c7); box-shadow: 0 4px 6px rgba(0,0,0,.5); }
 
-/* The big door: two faces, hinged on the right edge. Opening overshoots a
-   touch and settles; closing accelerates shut like a real metal door. */
+/* The big door: two faces, hinged on the right edge, swinging toward the
+   viewer like a real locker. No CSS transition — the spring drives --a. */
 .cabinet__door {
   position: absolute; inset: 0; transform-origin: right center; transform-style: preserve-3d;
-  transition: transform var(--swing-close) cubic-bezier(.55, 0, .75, .3);
-  cursor: pointer; z-index: 3; border-radius: 6px; will-change: transform;
+  transform: rotateY(calc(var(--a) * 1deg));
+  cursor: grab; z-index: 3; border-radius: 6px; will-change: transform;
+  touch-action: none; user-select: none; -webkit-user-select: none;
 }
-.cabinet.is-open .cabinet__door {
-  transform: rotateY(-124deg);
-  transition: transform var(--swing) cubic-bezier(.2, .9, .25, 1.06);
-}
+.cabinet.is-grabbing, .cabinet.is-grabbing .cabinet__door { cursor: grabbing; }
 .door__face { position: absolute; inset: 0; backface-visibility: hidden; border-radius: 6px; }
+.door__face::after { /* faces darken as they turn away from the light */
+  content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+  background: #000; opacity: var(--shade);
+}
+.door__edge { /* the door's thickness, seen as it swings toward you */
+  position: absolute; left: 0; top: 0; bottom: 0; width: 14px;
+  transform-origin: left center; transform: rotateY(90deg);
+  background: linear-gradient(90deg, #3c4046, #2a2d31);
+}
+.cabinet__door .handle { transition: transform .16s cubic-bezier(.3, 1.5, .6, 1); }
+.cabinet.is-unlatched .cabinet__door .handle { transform: translateY(calc(-50% - 12px)); }
 .cabinet__door .label { top: 24%; left: 24%; right: 24%; padding: 20px 12px 16px; }
 .cabinet__door .label__title { font-size: clamp(26px, 3.4vw, 40px); }
 .cabinet__door .label__period { font-size: 12px; }
@@ -602,6 +644,7 @@ kbd {
   .hero__row { grid-template-columns: 1fr; gap: 28px; }
   .hero__stats dd { font-size: 20px; }
   .nav__name { display: none; }
+  .sound__label { display: none; }
 }
 @media (max-width: 700px) {
   .label__title { font-size: 18px; }
@@ -611,8 +654,8 @@ kbd {
   .icon-btn { margin-left: 0; }
   .nav-btn { padding: 0 16px; }
   .nav-btn__label { display: none; }
+  .stage__hint { top: 64px; font-size: 12px; }
   .notes { grid-template-columns: 1fr; gap: 18px; }
-  .cabinet.is-open .cabinet__door { transform: rotateY(-120deg); }
   .shelf { flex-basis: 74px; }
   .shelf::after { height: 40px; }
   .shelf > * { bottom: 48px; }

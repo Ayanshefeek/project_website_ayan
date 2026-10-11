@@ -36,18 +36,31 @@ site reverses it, so the new project automatically shows up in the first locker.
 | `css/styles.css` | Lockers, 3D door, interior, per-project theming, animations |
 | `js/projects.js` | Project data, the only file to edit when adding a project |
 | `js/art.js` | Hand-drawn style SVG poster for each project |
-| `js/main.js` | Renders lockers + index, pointer tilt, open/close morph, browsing, filters, deep links |
+| `js/door.js` | Door spring physics + synthesized sounds |
+| `js/main.js` | Renders lockers + index, door dragging, open/close morph, browsing, filters, deep links |
 
 ## Interactions
 
-- **Hover** a locker: it leans toward your cursor and the door opens a little.
-- **Click** a locker (or a row in the project index): the locker grows out of its spot into the
-  centre and the door swings open. Click the door to shut it or open it again.
+- **Hover** a locker: it leans toward your cursor and its door springs ajar, then clacks shut when you leave.
+- **Click** a locker (or a row in the project index): it grows out of its spot into the centre, the
+  handle unlatches and the door swings open toward you.
+- **Grab the door** and swing it with your mouse or finger. It follows the pointer in true 3D. Let go
+  and it keeps your momentum: flick it shut or open, or let it settle to the nearer side. A closing
+  door slams into the frame, bounces slightly and shakes the cabinet. Click the door to open or close it.
 - **Browse** with the `←` / `→` buttons, the arrow keys, or a swipe on phones. Quick repeated presses add up.
-- **Close** with `Esc`, the ✕ button, or by clicking the background. The locker shrinks back into its place.
-- **Filter** the project index by topic (RAG, Agents, LLMOps, …). Lockers that don't match dim out.
+- **Close** with `Esc`, the ✕ button, or by clicking the background.
+- **Sound**: optional latch and slam sounds, synthesized in the browser (toggle in the nav, off by default).
+- **Filter** the project index by topic. Lockers that don't match dim out.
 - **Deep links**: `/#cinesearch`, `/#react-copilot`, … open that locker directly.
-- Respects `prefers-reduced-motion`, and the keyboard focus stays inside the open locker.
+- Keyboard friendly (Enter/Space on the door) and respects `prefers-reduced-motion`.
+
+## How the door works
+
+`js/door.js` is a small spring-physics engine rather than CSS transitions. The door is a damped
+spring with a frame to hit, which is why it can be grabbed mid-swing, thrown, and slammed. The door angle is
+written to one CSS variable (`--a`). The inside light, the door's shadow, the shading on the door
+faces, the content reveal and the cabinet sliding aside all follow that one value. Dragging projects
+the door through the same perspective CSS uses, so the point you grab stays under your pointer.
 
 The 3D is pure CSS transforms (no WebGL). Text stays real and accessible, nothing needs to be
 built, and it runs smoothly on phones.
