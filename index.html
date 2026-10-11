@@ -1,0 +1,73 @@
+<!doctype html>
+<!--
+  index.html — page skeleton for the AI project locker hallway.
+
+  The lockers themselves are rendered by js/main.js from js/projects.js, so
+  this file only holds the static frame: header, the hallway that receives
+  the locker grid, and the "open locker" stage used for the 3D detail view.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Ayan Shefeek — AI Project Lockers</title>
+  <meta name="description" content="An interactive 3D locker hallway showcasing Ayan Shefeek's AI projects — RAG systems, multi-agent pipelines, LLMOps and evaluation tooling." />
+  <meta name="theme-color" content="#121214" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect x='6' y='2' width='20' height='28' rx='2' fill='%23555b63'/><rect x='10' y='8' width='12' height='2' fill='%23e8c77a'/><rect x='10' y='12' width='12' height='2' fill='%23e8c77a'/><rect x='21' y='16' width='2' height='5' fill='%23ccc'/></svg>" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Caveat:wght@500;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;600&family=Permanent+Marker&family=Playfair+Display:ital,wght@0,600;1,500&family=Space+Grotesk:wght@500;700&family=VT323&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+  <div class="ambient" aria-hidden="true">
+    <div class="ambient__lamp"></div>
+    <div class="ambient__floor"></div>
+    <div class="ambient__dust"></div>
+  </div>
+
+  <header class="hero">
+    <p class="hero__eyebrow">Hallway of builds · est. 2025</p>
+    <h1 class="hero__title">
+      <span class="hero__script">Ayan's</span>
+      AI Project Lockers
+    </h1>
+    <p class="hero__lede">
+      Every locker holds one project — RAG systems, multi-agent pipelines, LLMOps and evaluation tooling.
+      The newest builds sit first. <strong>Pick a locker and open it.</strong>
+    </p>
+    <div class="hero__meta">
+      <span><b id="count">0</b> lockers</span>
+      <span class="dot"></span>
+      <span>newest → oldest</span>
+      <span class="dot"></span>
+      <a href="https://github.com/Ayanshefeek" target="_blank" rel="noopener">github/Ayanshefeek ↗</a>
+    </div>
+  </header>
+
+  <main class="hallway" id="hallway">
+    <div class="hallway__row" id="lockers" role="list"></div>
+  </main>
+
+  <footer class="foot">
+    <p>Built locker by locker · © <span id="year"></span> Ayan Shefeek</p>
+  </footer>
+
+  <!-- Detail stage: one large 3D locker whose door swings open. -->
+  <div class="stage" id="stage" hidden>
+    <div class="stage__backdrop" data-close></div>
+    <div class="stage__scene">
+      <div class="cabinet" id="cabinet" role="dialog" aria-modal="true" aria-labelledby="cabinet-title"></div>
+    </div>
+    <div class="stage__controls">
+      <button class="ctrl" id="prev" aria-label="Previous locker">←</button>
+      <button class="ctrl ctrl--close" data-close aria-label="Close locker">Close locker ✕</button>
+      <button class="ctrl" id="next" aria-label="Next locker">→</button>
+    </div>
+  </div>
+
+  <script src="js/projects.js"></script>
+  <script src="js/art.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>
