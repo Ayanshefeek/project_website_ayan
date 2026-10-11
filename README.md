@@ -15,6 +15,9 @@ python3 -m http.server 8000
 # open http://localhost:8000
 ```
 
+> After pulling an update, if something looks unchanged, do a hard refresh (`Ctrl+Shift+R` /
+> `Cmd+Shift+R`). Asset links carry a `?v=` number, so bump it in `index.html` when you change CSS/JS.
+
 ## Deploy (GitHub Pages)
 
 Repo **Settings → Pages → Deploy from a branch**, then pick the branch and `/ (root)`.
@@ -45,9 +48,10 @@ site reverses it, so the new project automatically shows up in the first locker.
 
 - **Intro**: a short curtain holds the page until the web fonts are ready (no text jumping), then the
   room's lamp flickers on and the hero rises in.
-- **The room's bulb**: a bare bulb hangs in the top corner. It stutters on as the page opens, then
-  flickers at random (quick dips, buzzing, the odd brown-out). The whole room's light dims with it,
-  and brushing past it with the cursor sets it swinging.
+- **The room's bulb**: the page opens in a dark room. A bare bulb hanging in the top corner makes a few
+  false starts, catches, and lights the room. After that it flickers at random (quick dips, buzzing,
+  the odd brown-out), the room's light dims with it, and brushing past it with the cursor sets it
+  swinging. With reduced motion turned on, the light and flicker still play but the bulb doesn't swing.
 - **Walk the hallway** (desktop): scrolling moves you along a wall of lockers set in 3D, with
   ceiling tubes that flicker on, a glossy floor reflection, a soft spotlight that follows your mouse,
   and a progress line. Phones get a tidy grid instead.

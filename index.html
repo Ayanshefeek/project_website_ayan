@@ -18,7 +18,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Caveat:wght@500;700&family=Instrument+Serif:ital@0;1&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&family=Permanent+Marker&family=Playfair+Display:wght@600&family=Space+Grotesk:wght@500;700&family=VT323&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/styles.css" />
+  <link rel="stylesheet" href="css/styles.css?v=9" />
   <!-- Hold the page behind the intro curtain until fonts are ready (only when JS runs). -->
   <script>
     document.documentElement.classList.add("is-intro");
@@ -28,6 +28,10 @@
       var c = document.getElementById("intro");
       if (c) c.classList.add("is-done");
     }, 4000);
+    // ...and never leave the room dark if the bulb script fails.
+    setTimeout(function () {
+      document.documentElement.classList.remove("has-bulb");
+    }, 7000);
   </script>
 </head>
 <body>
@@ -46,6 +50,8 @@
   <div class="grain" aria-hidden="true"></div>
 
   <!-- The room's light: a bare bulb hanging in the top corner (driven by initBulb in fx.js). -->
+  <!-- The page opens in a dark room; the bulb's turn-on lights it (see --room in styles.css). -->
+  <div class="darkness" aria-hidden="true"></div>
   <div class="bulb-room" aria-hidden="true">
   <div class="bulb" id="bulb">
     <div class="bulb__swing">
@@ -170,11 +176,11 @@
     </div>
   </div>
 
-  <script src="js/vendor/lenis.min.js"></script>
-  <script src="js/projects.js"></script>
-  <script src="js/art.js"></script>
-  <script src="js/door.js"></script>
-  <script src="js/fx.js"></script>
-  <script src="js/main.js"></script>
+  <script src="js/vendor/lenis.min.js?v=9"></script>
+  <script src="js/projects.js?v=9"></script>
+  <script src="js/art.js?v=9"></script>
+  <script src="js/door.js?v=9"></script>
+  <script src="js/fx.js?v=9"></script>
+  <script src="js/main.js?v=9"></script>
 </body>
 </html>

@@ -34,19 +34,20 @@
 
   /* ---------- Intro + font loading ---------- */
 
-  async function intro() {
+  async function intro({ onLift } = {}) {
     const root = document.documentElement;
     const curtain = document.getElementById("intro");
     const started = performance.now();
     const fonts = document.fonts ? document.fonts.ready : Promise.resolve();
     await Promise.race([fonts, new Promise((r) => setTimeout(r, FONT_TIMEOUT_MS))]);
     const left = INTRO_MIN_MS - (performance.now() - started);
-    if (left > 0 && !reduceMotion) await new Promise((r) => setTimeout(r, left));
+    if (left > 0) await new Promise((r) => setTimeout(r, left));
 
     root.classList.add("is-ready");          // fonts in: hero may animate
     curtain.classList.add("is-done");        // bar completes, curtain lifts
     root.classList.remove("is-intro");
-    await new Promise((r) => setTimeout(r, reduceMotion ? 0 : 900));
+    if (onLift) onLift();
+    await new Promise((r) => setTimeout(r, 900));
     curtain.remove();
   }
 
@@ -281,23 +282,50 @@
    * a fixed-interval blink reads as a UI animation, a random one as a bulb.
    */
   const BULB = {
-    on: [[0.18, 60], [0, 110], [0.75, 50], [0.08, 160], [0.5, 45], [0, 70], [0.9, 40], [0.4, 60], [1, 0]],
+    // Switching on: a few false starts before it catches (~1.6s).
+    on: [
+      [0.25, 70], [0, 260], [0.6, 60], [0, 120], [0.15, 50], [0, 380],
+      [0.85, 90], [0.2, 70], [0.95, 50], [0.4, 110], [1, 140], [0.6, 60], [1, 0],
+    ],
     patterns: [
       { w: 5, seq: [[0.35, 45], [1, 70], [0.55, 40], [1, 0]] },                       // quick double dip
       { w: 3, seq: [[0.7, 30], [0.45, 30], [0.8, 30], [0.4, 30], [0.85, 40], [1, 0]] }, // buzzing
       { w: 2, seq: [[0.6, 500], [0.35, 60], [0.65, 120], [1, 0]] },                    // brown-out
       { w: 1, seq: [[0, 90], [1, 40], [0, 70], [0.6, 50], [1, 0]] },                   // nearly dies
     ],
-    gap: [2600, 8000],   // ms between flicker bursts
+    gap: [2200, 6500],   // ms between flicker bursts
+    failSafeMs: 6000,    // light the room even if start() is never called
   };
 
+  /*
+   * Two variables: --bulb is the bulb's brightness right now (flickers keep
+   * changing it); --room is how lit the room is. During switch-on --room
+   * follows the bulb, so the page itself comes out of the dark; afterwards it
+   * stays at 1 and idle flickers only dim the room slightly (see .darkness).
+   *
+   * Reduced-motion users still get the light and the flicker: they're changes
+   * of brightness, not movement. Only the swinging is skipped for them.
+   */
   function initBulb() {
     const el = document.getElementById("bulb");
     if (!el) return { start() {} };
     const root = document.documentElement;
     const swing = el.querySelector(".bulb__swing");
-    const set = (v) => root.style.setProperty("--bulb", v.toFixed(3));
+    let switchingOn = true;
+    const set = (v) => {
+      root.style.setProperty("--bulb", v.toFixed(3));
+      if (switchingOn) root.style.setProperty("--room", v.toFixed(3));
+    };
+    root.classList.add("has-bulb");
     let busy = false;
+    let started = false;
+    setTimeout(() => {
+      if (!started) {
+        switchingOn = false;
+        set(1);
+        root.style.setProperty("--room", "1");
+      }
+    }, BULB.failSafeMs);
 
     const play = (seq) =>
       new Promise((done) => {
@@ -344,8 +372,11 @@
 
     return {
       async start() {
-        if (reduceMotion) return set(1);
+        if (started) return;
+        started = true;
         await play(BULB.on);
+        switchingOn = false;
+        root.style.setProperty("--room", "1");
         idle();
       },
     };

@@ -732,12 +732,26 @@ kbd {
 /* --bulb (0..1) is set on <html> by initBulb() in fx.js; the ambient lamp
    follows it, so the whole room dims when the bulb flickers. */
 @property --bulb { syntax: "<number>"; inherits: true; initial-value: 0; }
+@property --room { syntax: "<number>"; inherits: true; initial-value: 0; }
+
+/* The dark room. Only exists when the bulb script is running (.has-bulb),
+   so the page is never left dark without JS. Fully dark until the bulb
+   switches on; after that idle flickers dim the page only a little. The
+   clear spot sits around the bulb so you see it glow in the dark. */
+.darkness { display: none; }
+.has-bulb .darkness {
+  display: block; position: fixed; inset: 0; z-index: 45; pointer-events: none;
+  background: radial-gradient(
+    circle at calc(100% - clamp(28px, 9vw, 150px) - 22px) calc(64px + clamp(46px, 11vh, 120px) + 40px),
+    rgba(6,6,7,.35), rgba(6,6,7,.9) 360px, rgba(6,6,7,.97) 70%);
+  opacity: min(1, calc((1 - var(--room)) + (1 - var(--bulb)) * .22));
+}
 .ambient__lamp { opacity: calc(.3 + var(--bulb) * .7); }
 
 /* Clips the bulb's wide glow so it can never make the page wider than the
    screen (on phones that shifted the fixed nav off-screen). */
 .bulb-room {
-  position: absolute; top: 0; left: 0; right: 0; height: 100vh; z-index: 30;
+  position: absolute; top: 0; left: 0; right: 0; height: 100vh; z-index: 46; /* above the darkness */
   overflow: hidden; pointer-events: none;
 }
 .bulb {
@@ -800,8 +814,10 @@ kbd {
   .bulb__cord { height: 34px; }
   .bulb__glass::after { width: 300px; height: 300px; }
 }
+/* Reduced motion: the bulb still lights and flickers (brightness, not
+   movement) but hangs still. */
 @media (prefers-reduced-motion: reduce) {
-  :root { --bulb: 1; }
+  .bulb__swing { animation: none; }
 }
 
 /* ---------- Scroll-driven hallway (wide screens) ---------- */
@@ -963,6 +979,6 @@ html.lenis, html.lenis body { height: auto; }
   .bank .dial { top: 56%; left: 22%; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .intro { display: none; }
+  /* keep the curtain (a fade) but skip the hero's rise */
   .is-intro .hero > *, .is-intro .hero__title { opacity: 1; }
 }
