@@ -7,6 +7,8 @@
  * To add a new project: append it to the END of this array — nothing else
  * needs to change.
  *
+ * `tags` drive the topic filter above the project index.
+ *
  * Each project carries its own `theme` (colours + display font) and an `art`
  * key that selects a hand-drawn SVG poster from art.js, which is what gives
  * every locker a different personality.
@@ -14,6 +16,7 @@
 window.PROJECTS = [
   {
     id: "ott-revenue",
+    tags: ["Deep Learning", "Explainable AI"],
     title: "OTT Revenue Predictor",
     tagline: "Forecasting box-office & streaming revenue with deep learning",
     period: "Jan 2025 – Apr 2025",
@@ -41,6 +44,7 @@ window.PROJECTS = [
   },
   {
     id: "cinesearch",
+    tags: ["RAG"],
     title: "CineSearch AI",
     tagline: "Conversational movie search built on RAG — from scratch",
     period: "Apr 2026 – May 2026",
@@ -68,6 +72,7 @@ window.PROJECTS = [
   },
   {
     id: "ai-tool-recommendator",
+    tags: ["Agents", "RAG"],
     title: "AI Tool Recommendator",
     tagline: "A four-agent pipeline that finds the right AI tool for any task",
     period: "May 2026",
@@ -96,6 +101,7 @@ window.PROJECTS = [
   },
   {
     id: "coding-assistant",
+    tags: ["Agents", "RAG"],
     title: "Multi-Agent Coding Assistant",
     tagline: "A local, private pair-programmer that knows your codebase",
     period: "May 2026 – Jun 2026",
@@ -124,6 +130,7 @@ window.PROJECTS = [
   },
   {
     id: "email-assistant",
+    tags: ["Agents", "Automation"],
     title: "Email Productivity Assistant",
     tagline: "Reads your inbox, books your meetings, ignores the noise",
     period: "Jun 2026 – Jul 2026",
@@ -151,6 +158,7 @@ window.PROJECTS = [
   },
   {
     id: "brand-guardian",
+    tags: ["LLMOps", "Agents", "RAG"],
     title: "Brand Guardian AI",
     tagline: "LLMOps-driven video compliance auditing",
     period: "Aug 2026 – Sep 2026",
@@ -178,6 +186,7 @@ window.PROJECTS = [
   },
   {
     id: "eval-judge-mcp",
+    tags: ["Evaluation", "MCP"],
     title: "Eval Judge MCP",
     tagline: "A local judge for agent & RAG outputs — no second LLM call",
     period: "Sep 2026 – Oct 2026",
@@ -206,6 +215,7 @@ window.PROJECTS = [
   },
   {
     id: "react-copilot",
+    tags: ["Agents", "RAG", "Evaluation"],
     title: "ReAct Copilot",
     tagline: "Grounded Q&A where every answer must prove its source",
     period: "Aug 2026 – Oct 2026",
