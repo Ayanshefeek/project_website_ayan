@@ -22,6 +22,12 @@ python3 -m http.server 8000
 
 Repo **Settings → Pages → Deploy from a branch**, then pick the branch and `/ (root)`.
 
+## Link previews
+
+`index.html` has Open Graph and Twitter tags, so pasting the link into LinkedIn, WhatsApp, Slack or X
+shows a title, description and the image `assets/og-image.jpg` (1200×630). The tags use the full
+GitHub Pages URL; if you move the site to a custom domain, replace those URLs.
+
 ## Add a new project
 
 Append an entry to the **end** of `js/projects.js`. The list is kept oldest → newest and the
