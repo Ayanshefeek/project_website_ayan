@@ -18,7 +18,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Caveat:wght@500;700&family=Instrument+Serif:ital@0;1&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&family=Permanent+Marker&family=Playfair+Display:wght@600&family=Space+Grotesk:wght@500;700&family=VT323&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/styles.css?v=9" />
+  <link rel="stylesheet" href="css/styles.css?v=10" />
   <!-- Hold the page behind the intro curtain until fonts are ready (only when JS runs). -->
   <script>
     document.documentElement.classList.add("is-intro");
@@ -40,6 +40,11 @@
       <span class="intro__mono">AS</span>
       <i class="intro__bar"></i>
       <span class="intro__caption">Unlocking the hallway</span>
+      <span class="intro__prompt">
+        <i class="intro__switch"></i>
+        <span>Click anywhere to switch on the light</span>
+        <small>sound on · or wait</small>
+      </span>
     </div>
   </div>
 
@@ -78,9 +83,9 @@
       <a href="#lockers-section">Lockers</a>
       <a href="#index">Index</a>
       <a href="https://github.com/Ayanshefeek" target="_blank" rel="noopener">GitHub <span aria-hidden="true">↗</span></a>
-      <button class="sound" id="sound" aria-pressed="false" title="Door sounds">
+      <button class="sound" id="sound" aria-pressed="true" title="Sound on/off">
         <span class="sound__bars" aria-hidden="true"><i></i><i></i><i></i></span>
-        <span class="sound__label">Sound off</span>
+        <span class="sound__label">Sound on</span>
       </button>
     </div>
   </nav>
@@ -176,11 +181,12 @@
     </div>
   </div>
 
-  <script src="js/vendor/lenis.min.js?v=9"></script>
-  <script src="js/projects.js?v=9"></script>
-  <script src="js/art.js?v=9"></script>
-  <script src="js/door.js?v=9"></script>
-  <script src="js/fx.js?v=9"></script>
-  <script src="js/main.js?v=9"></script>
+  <script src="js/vendor/lenis.min.js?v=10"></script>
+  <script src="js/projects.js?v=10"></script>
+  <script src="js/art.js?v=10"></script>
+  <script src="js/sound.js?v=10"></script>
+  <script src="js/door.js?v=10"></script>
+  <script src="js/fx.js?v=10"></script>
+  <script src="js/main.js?v=10"></script>
 </body>
 </html>

@@ -127,6 +127,7 @@
         close: { k: 190, z: 0.7 },
         bounce: 0.35,
         overswing: 4,
+        onImpact: (speed) => Sound.clack(speed),
         onUpdate: (a) => {
           door.style.setProperty("--a", a.toFixed(2));
           el.style.setProperty("--glow", clamp(a / CONFIG.PEEK_DEG, 0, 1).toFixed(3));
@@ -364,7 +365,8 @@
     bounce: 0.28,
     overswing: 7,
     closePull: 70, // heavy door: it accelerates into the frame
-    onUpdate(a) {
+    onUpdate(a, v) {
+      Sound.creak(v);
       const p = clamp(a / stageDoor.o.max, 0, 1);
       const rad = (a * Math.PI) / 180;
       cabinet.style.setProperty("--a", a.toFixed(2));
@@ -576,14 +578,22 @@
       btn.setAttribute("aria-pressed", String(Sound.enabled));
       btn.querySelector(".sound__label").textContent = Sound.enabled ? "Sound on" : "Sound off";
     };
-    Sound.enabled = store.get("lockers.sound") === "1";
+    // On by default; a visitor who mutes it stays muted on later visits.
+    Sound.setEnabled(store.get("lockers.sound") !== "0");
     render();
     btn.addEventListener("click", () => {
-      Sound.enabled = !Sound.enabled;
+      Sound.setEnabled(!Sound.enabled);
       store.set("lockers.sound", Sound.enabled ? "1" : "0");
+      Sound.unlock();
       render();
       Sound.latch();
     });
+    // If the intro prompt was skipped, the first click or key anywhere
+    // starts audio (browsers forbid it before a gesture); the hum fades in.
+    const firstGesture = () => {
+      if (Sound.unlock()) ["click", "keydown", "touchend"].forEach((ev) => window.removeEventListener(ev, firstGesture, true));
+    };
+    ["click", "keydown", "touchend"].forEach((ev) => window.addEventListener(ev, firstGesture, true));
   }
 
   /* ---------- Stage: open / close / browse ---------- */
@@ -951,8 +961,16 @@
   // Fonts can change locker widths, so measure the track again once they're in.
   const bulb = FX.initBulb();
   // As the curtain lifts the page is still dark; a beat later the bulb
-  // stutters on and the room lights up with it.
-  FX.intro({ onLift: () => setTimeout(() => bulb.start(), 850) }).then(() => {
+  // stutters on and the room lights up with it. With sound on, the curtain
+  // first invites a click — that click is the light switch.
+  FX.intro({
+    prompt: Sound.enabled,
+    onSwitch: () => {
+      Sound.unlock();
+      Sound.switchClick();
+    },
+    onLift: (switched) => setTimeout(() => bulb.start(), switched ? 380 : 850),
+  }).then(() => {
     window.dispatchEvent(new Event("resize"));
     openFromHash();
   });

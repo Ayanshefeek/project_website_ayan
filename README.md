@@ -39,7 +39,8 @@ site reverses it, so the new project automatically shows up in the first locker.
 | `css/styles.css` | Lockers, 3D door, interior, per-project theming, animations |
 | `js/projects.js` | Project data, the only file to edit when adding a project |
 | `js/art.js` | Hand-drawn style SVG poster for each project |
-| `js/door.js` | Door spring physics + synthesized sounds |
+| `js/sound.js` | All sounds, synthesized with Web Audio (hum, crackle, creak, latch, slam…) |
+| `js/door.js` | Door spring physics |
 | `js/fx.js` | Intro, flickering bulb, locker wear, combination dial, custom cursor, spotlight, smooth scroll |
 | `js/vendor/lenis.min.js` | Smooth-scroll library (MIT, see `LENIS-LICENSE`) |
 | `js/main.js` | Renders lockers + index, scroll-driven hallway, shuffle, door dragging, open/close morph, browsing, filters, deep links |
@@ -52,6 +53,13 @@ site reverses it, so the new project automatically shows up in the first locker.
   false starts, catches, and lights the room. After that it flickers at random (quick dips, buzzing,
   the odd brown-out), the room's light dims with it, and brushing past it with the cursor sets it
   swinging. With reduced motion turned on, the light and flicker still play but the bulb doesn't swing.
+- **Sound** (on by default, mute in the nav): a light-switch click, electrical crackles as the bulb
+  catches and flickers, a faint mains hum that dips with the light, a hinge creak that follows the
+  door's swing speed (including while you drag it), the dial's ticks, the latch, the slam, and soft
+  clacks from the hallway doors. All of it is synthesized live with the Web Audio API, so there are no
+  audio files to download. Browsers only allow sound after a click, so the intro invites one ("click
+  anywhere to switch on the light"). If the visitor doesn't click, the light comes on silently and
+  sound starts at their first click.
 - **Walk the hallway** (desktop): scrolling moves you along a wall of lockers set in 3D, with
   ceiling tubes that flicker on, a glossy floor reflection, a soft spotlight that follows your mouse,
   and a progress line. Phones get a tidy grid instead.
@@ -74,7 +82,6 @@ site reverses it, so the new project automatically shows up in the first locker.
   door slams into the frame, bounces slightly and shakes the cabinet. Click the door to open or close it.
 - **Browse** with the `←` / `→` buttons, the arrow keys, or a swipe on phones. Quick repeated presses add up.
 - **Close** with `Esc`, the ✕ button, or by clicking the background.
-- **Sound**: optional latch and slam sounds, synthesized in the browser (toggle in the nav, off by default).
 - **Filter** the project index by topic. Lockers that don't match dim out.
 - **Deep links**: `/#cinesearch`, `/#react-copilot`, … open that locker directly.
 - Keyboard friendly (Enter/Space on the door). With `prefers-reduced-motion` the intro, hallway walk

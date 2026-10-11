@@ -118,10 +118,13 @@
       if (a < 0) a = a * 0.2;
       a = Math.min(Math.max(a, -2), max + overswing * 2);
       const now = performance.now();
+      const prev = this._samples[this._samples.length - 1];
+      // Instantaneous speed, so things that follow the door (its creak) react while dragging.
+      const v = prev && now > prev.t ? ((a - prev.a) / (now - prev.t)) * 1000 : 0;
       this._samples.push({ t: now, a });
       while (this._samples.length > 2 && now - this._samples[0].t > 140) this._samples.shift();
       this.a = a;
-      this.o.onUpdate(a, 0);
+      this.o.onUpdate(a, v);
     }
     release() {
       this.dragging = false;
@@ -191,70 +194,8 @@
     }
   }
 
-  /*
-   * Sound: synthesized with Web Audio (no audio files to download).
-   * Off by default — sound on a portfolio should be opt-in.
-   */
-  const Sound = {
-    enabled: false,
-    ctx: null,
-    _ctx() {
-      if (!this.ctx) this.ctx = new (window.AudioContext || window.webkitAudioContext)();
-      if (this.ctx.state === "suspended") this.ctx.resume();
-      return this.ctx;
-    },
-    _noise(ctx, seconds) {
-      const buf = ctx.createBuffer(1, Math.ceil(ctx.sampleRate * seconds), ctx.sampleRate);
-      const d = buf.getChannelData(0);
-      for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
-      const src = ctx.createBufferSource();
-      src.buffer = buf;
-      return src;
-    },
-    _burst({ freq, q, dur, gain, type = "bandpass" }) {
-      const ctx = this._ctx();
-      const t = ctx.currentTime;
-      const src = this._noise(ctx, dur);
-      const f = ctx.createBiquadFilter();
-      f.type = type;
-      f.frequency.value = freq;
-      f.Q.value = q;
-      const g = ctx.createGain();
-      g.gain.setValueAtTime(gain, t);
-      g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-      src.connect(f).connect(g).connect(ctx.destination);
-      src.start(t);
-    },
-    _tone(freq, dur, gain) {
-      const ctx = this._ctx();
-      const t = ctx.currentTime;
-      const o = ctx.createOscillator();
-      const g = ctx.createGain();
-      o.frequency.setValueAtTime(freq, t);
-      o.frequency.exponentialRampToValueAtTime(freq * 0.6, t + dur);
-      g.gain.setValueAtTime(gain, t);
-      g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-      o.connect(g).connect(ctx.destination);
-      o.start(t);
-      o.stop(t + dur);
-    },
-    latch() {
-      if (!this.enabled) return;
-      this._burst({ freq: 3200, q: 4, dur: 0.035, gain: 0.25, type: "highpass" });
-      this._tone(1400, 0.04, 0.05);
-    },
-    tick() {
-      if (!this.enabled) return;
-      this._burst({ freq: 4200, q: 8, dur: 0.018, gain: 0.12, type: "bandpass" });
-    },
-    slam(speed) {
-      if (!this.enabled) return;
-      const s = Math.min(speed / 500, 1);
-      this._burst({ freq: 420, q: 1.2, dur: 0.22, gain: 0.35 * s + 0.05 });
-      this._tone(95, 0.18, 0.25 * s + 0.04);
-      this._burst({ freq: 2600, q: 6, dur: 0.05, gain: 0.08 * s, type: "bandpass" });
-    },
-  };
+  // Sounds live in sound.js; re-exported here so callers have one import.
+  const Sound = window.SoundKit;
 
   window.DoorKit = { DoorSpring, Sound, reduceMotion };
 })();

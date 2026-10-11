@@ -19,6 +19,7 @@
   const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   const finePointer = window.matchMedia("(pointer: fine)").matches;
   const FONT_TIMEOUT_MS = 2500;   // never hold the page longer than this for fonts
+  const PROMPT_MS = 2400;         // how long "click to switch on the light" waits before going ahead silently
   const INTRO_MIN_MS = 650;       // let the curtain register even on a warm cache
 
   // Small seeded PRNG (mulberry32): same seed -> same "random" wear.
@@ -34,7 +35,14 @@
 
   /* ---------- Intro + font loading ---------- */
 
-  async function intro({ onLift } = {}) {
+  /*
+   * Browsers only start audio from a user gesture, so when sound is on the
+   * curtain asks for one: "click to switch on the light". The click is the
+   * light switch (it unlocks audio and the bulb comes on with a sound). If
+   * nobody clicks within PROMPT_MS the light comes on silently instead —
+   * the prompt invites, it never blocks.
+   */
+  async function intro({ onLift, prompt = false, onSwitch } = {}) {
     const root = document.documentElement;
     const curtain = document.getElementById("intro");
     const started = performance.now();
@@ -43,10 +51,31 @@
     const left = INTRO_MIN_MS - (performance.now() - started);
     if (left > 0) await new Promise((r) => setTimeout(r, left));
 
+    let switched = false;
+    if (prompt) {
+      curtain.classList.add("is-prompt");
+      switched = await new Promise((resolve) => {
+        const events = ["click", "keydown", "touchend"];
+        const done = (clicked) => {
+          events.forEach((ev) => window.removeEventListener(ev, onGesture, true));
+          clearTimeout(timer);
+          resolve(clicked);
+        };
+        const onGesture = (e) => {
+          if (e.type === "keydown" && ["Shift", "Control", "Alt", "Meta", "Tab"].includes(e.key)) return;
+          if (onSwitch) onSwitch(); // runs inside the gesture, so audio may start
+          done(true);
+        };
+        const timer = setTimeout(() => done(false), PROMPT_MS);
+        events.forEach((ev) => window.addEventListener(ev, onGesture, true));
+      });
+      if (switched) curtain.classList.add("is-fast");
+    }
+
     root.classList.add("is-ready");          // fonts in: hero may animate
     curtain.classList.add("is-done");        // bar completes, curtain lifts
     root.classList.remove("is-intro");
-    if (onLift) onLift();
+    if (onLift) onLift(switched);
     await new Promise((r) => setTimeout(r, 900));
     curtain.remove();
   }
@@ -312,8 +341,10 @@
     const root = document.documentElement;
     const swing = el.querySelector(".bulb__swing");
     let switchingOn = true;
+    const sound = window.SoundKit;
     const set = (v) => {
       root.style.setProperty("--bulb", v.toFixed(3));
+      if (sound) sound.bulb(v); // hum follows brightness; crackle on each flicker
       if (switchingOn) root.style.setProperty("--room", v.toFixed(3));
     };
     root.classList.add("has-bulb");

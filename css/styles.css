@@ -725,8 +725,31 @@ kbd {
   transform: scaleX(0); animation: load 1.8s cubic-bezier(.3, .6, .2, 1) forwards;
 }
 .intro.is-done .intro__bar::after { animation: none; transform: scaleX(1); transition: transform .3s ease; }
-.intro__caption { font: 500 10px var(--mono); letter-spacing: .24em; text-transform: uppercase; color: var(--faint); }
+.intro__caption { font: 500 10px var(--mono); letter-spacing: .24em; text-transform: uppercase; color: var(--faint); transition: opacity .3s; }
 @keyframes load { to { transform: scaleX(.86); } }
+
+/* "Click to switch on the light" — shown once fonts are in, when sound is on. */
+.intro__prompt {
+  display: grid; justify-items: center; gap: 6px; height: 0; overflow: visible;
+  opacity: 0; transform: translateY(6px); transition: opacity .5s ease, transform .6s var(--ease-out);
+  font: 500 13px var(--sans); color: var(--ink); pointer-events: none;
+}
+.intro__prompt small { font: 500 9px var(--mono); letter-spacing: .2em; text-transform: uppercase; color: var(--faint); }
+.intro.is-prompt .intro__caption { opacity: 0; }
+.intro.is-prompt .intro__prompt { opacity: 1; transform: none; margin-top: -24px; }
+.intro.is-prompt .intro__bar::after { animation: none; transform: scaleX(1); transition: transform .3s ease; }
+.intro.is-prompt { cursor: pointer; }
+.intro__switch { /* a little wall switch, nudging to be flipped */
+  position: relative; width: 16px; height: 24px; margin-bottom: 4px; border-radius: 4px;
+  border: 1px solid rgba(217,185,119,.6);
+}
+.intro__switch::after {
+  content: ""; position: absolute; left: 3px; right: 3px; top: 3px; height: 8px; border-radius: 2px; background: var(--gold);
+  animation: flip-hint 1.6s ease-in-out infinite;
+}
+@keyframes flip-hint { 0%, 55%, 100% { transform: translateY(0); } 70%, 85% { transform: translateY(8px); } }
+.intro.is-fast { transition: opacity .35s ease, visibility 0s .35s; }
+.intro.is-fast .intro__mark { transition-duration: .3s; }
 @keyframes breathe { 50% { box-shadow: 0 0 24px rgba(217,185,119,.25); } }
 /* ---------- The bulb (the room's light) ---------- */
 /* --bulb (0..1) is set on <html> by initBulb() in fx.js; the ambient lamp
